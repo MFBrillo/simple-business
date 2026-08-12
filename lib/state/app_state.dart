@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/sample_data.dart';
+import '../models/app_user.dart';
 import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
@@ -86,6 +87,16 @@ class AppState extends ChangeNotifier {
   List<Expense> expenses = [];
   AppSettings settings = const AppSettings();
 
+  /// Whether the signed-in account has `users.is_admin = true`. Drives the
+  /// Admin nav item and gates [loadUsers]/[setUserStatus] — the real
+  /// enforcement is server-side RLS (see `supabase/003_admin_users.sql`),
+  /// this just controls what the UI offers.
+  bool isAdmin = false;
+
+  /// All accounts, admin-only (RLS hides other rows from non-admins).
+  /// Loaded on demand by the Admin screen, not on every sign-in.
+  List<AppUser> users = [];
+
   bool _loaded = false;
   bool get isLoaded => _loaded;
 
@@ -110,6 +121,8 @@ class AppState extends ChangeNotifier {
       sales = [];
       expenses = [];
       settings = const AppSettings();
+      isAdmin = false;
+      users = [];
       screen = AppScreen.dashboard;
       _loaded = true;
       notifyListeners();
@@ -119,7 +132,7 @@ class AppState extends ChangeNotifier {
     _loaded = false;
     notifyListeners();
 
-    if (!await _isAccountActive()) {
+    if (!await _loadOwnUserRow()) {
       accountLockedMessage = "Your account isn't active yet. Contact your administrator to get access.";
       await supabase.auth.signOut(); // re-enters this method with session == null, which notifies
       return;
@@ -130,16 +143,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Checks the caller's `users.status` column. New sign-ups start at
-  /// 'Inactive' (an approval gate, not just a lock) — an admin flips a row
-  /// to 'Active' via the Supabase dashboard or a SQL statement to grant
-  /// access; there's no in-app admin UI for this. Fails CLOSED: a missing
-  /// row or any read error blocks access, matching the DB-level RLS check.
-  Future<bool> _isAccountActive() async {
+  /// Checks the caller's `users.status` and `is_admin` columns, setting
+  /// [isAdmin] as a side effect. New sign-ups start at status 'Inactive'
+  /// (an approval gate, not just a lock) — an admin flips a row to 'Active'
+  /// via the Admin screen (or the Supabase dashboard) to grant access.
+  /// Fails CLOSED: a missing row or any read error blocks access, matching
+  /// the DB-level RLS check.
+  Future<bool> _loadOwnUserRow() async {
     try {
-      final row = await supabase.from('users').select('status').maybeSingle();
+      final row = await supabase.from('users').select('status, is_admin').maybeSingle();
+      isAdmin = row?['is_admin'] == true;
       return row != null && row['status'] == 'Active';
     } catch (e) {
+      isAdmin = false;
       return false;
     }
   }
@@ -413,6 +429,41 @@ class AppState extends ChangeNotifier {
       settings = previous;
       notifyListeners();
       showToast('Could not save settings: ${_friendlyError(e)}');
+    }
+  }
+
+  // --- Admin: user approvals ----------------------------------------------
+  /// Fetches every account (admin-only — RLS returns just the caller's own
+  /// row otherwise, so a non-admin ends up with a harmless single-row list).
+  Future<void> loadUsers() async {
+    try {
+      final rows = await supabase.from('users').select().order('created_at');
+      users = rows.map((r) => AppUser.fromJson(r)).toList();
+      notifyListeners();
+    } catch (e) {
+      showToast('Could not load users: ${_friendlyError(e)}');
+    }
+  }
+
+  /// Flips a user's approval status. Only takes effect for the caller if
+  /// they're an admin — RLS rejects the write otherwise (see
+  /// `supabase/003_admin_users.sql`).
+  Future<void> setUserStatus(String id, String status) async {
+    final i = users.indexWhere((u) => u.id == id);
+    final previous = i == -1 ? null : users[i];
+    if (previous != null) {
+      users[i] = previous.copyWith(status: status);
+      notifyListeners();
+    }
+    try {
+      await supabase.from('users').update({'status': status}).eq('id', id);
+      showToast(status == 'Active' ? 'User activated' : 'User deactivated');
+    } catch (e) {
+      if (previous != null) {
+        users[i] = previous;
+        notifyListeners();
+      }
+      showToast('Could not update user: ${_friendlyError(e)}');
     }
   }
 

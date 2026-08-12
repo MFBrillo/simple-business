@@ -24,6 +24,9 @@ const _navItems = [
   _NavItem(AppScreen.settings, 'Settings', Icons.settings_outlined),
 ];
 
+/// Shown only to admins (see `AppState.isAdmin`), appended after Settings.
+const _adminNavItem = _NavItem(AppScreen.admin, 'Admin', Icons.admin_panel_settings_outlined);
+
 /// Products / Add Product / Product Details all keep the Products nav item active.
 AppScreen _navScreenFor(AppScreen screen) {
   if (screen == AppScreen.addProduct || screen == AppScreen.detail) return AppScreen.products;
@@ -41,6 +44,7 @@ const _titles = <AppScreen, (String, String)>{
   AppScreen.calculator: ('Profit Calculator', 'Price it right, every time'),
   AppScreen.reports: ('Reports', 'Trends across your business'),
   AppScreen.settings: ('Settings', 'Business profile & preferences'),
+  AppScreen.admin: ('Admin', 'Approve and manage user accounts'),
 };
 
 /// App shell: fixed sidebar + topbar on desktop (>900px), bottom tab bar
@@ -135,7 +139,7 @@ class _Sidebar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          for (final item in _navItems)
+          for (final item in [..._navItems, if (state.isAdmin) _adminNavItem])
             Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: _NavButton(item: item, isActive: item.screen == active),

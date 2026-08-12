@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/admin_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -157,6 +158,7 @@ class _ActiveScreen extends StatelessWidget {
       ),
       AppScreen.reports => const ReportsScreen(key: ValueKey('reports')),
       AppScreen.settings => const SettingsScreen(key: ValueKey('settings')),
+      AppScreen.admin => const AdminScreen(key: ValueKey('admin')),
     };
   }
 }
