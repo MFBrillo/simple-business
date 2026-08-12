@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f5; --card:#ffffff; --ink:#101613; --ink-2:#2c3733; --muted:#6d7a74; --line:#e6eae8;
+  --green:oklch(0.60 0.14 152); --green-soft:oklch(0.95 0.04 152); --green-ink:oklch(0.45 0.12 152);
+  --red:oklch(0.58 0.17 27); --red-soft:oklch(0.95 0.04 27);
+  --amber:oklch(0.72 0.14 68); --amber-soft:oklch(0.95 0.05 68);
+  --hover:oklch(0.96 0.006 152); --bar:oklch(0.45 0.02 200); --shadow:0 1px 2px rgba(16,24,20,.05),0 8px 24px -18px rgba(16,24,20,.25);
+}
+[data-theme="dark"]{
+  --bg:#0d1211; --card:#151b19; --ink:#e9efec; --ink-2:#cbd6d1; --muted:#8f9d97; --line:#232c29;
+  --green:oklch(0.72 0.15 152); --green-soft:oklch(0.30 0.06 152); --green-ink:oklch(0.80 0.14 152);
+  --red:oklch(0.68 0.17 27); --red-soft:oklch(0.30 0.07 27);
+  --amber:oklch(0.78 0.14 68); --amber-soft:oklch(0.30 0.06 68);
+  --hover:oklch(0.24 0.01 152); --bar:oklch(0.70 0.02 200); --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:inherit}
+a{color:var(--green-ink);text-decoration:none}
+a:hover{color:var(--green);text-decoration:underline}
+table{border-collapse:collapse;width:100%}
+[data-nav]{cursor:pointer}
+[data-nav]:hover{background:var(--hover)}
+[data-nav][data-active="1"]{background:var(--green-soft);color:var(--green-ink);font-weight:700}
+[data-nav][data-active="1"] svg{opacity:1}
+[data-btn]{cursor:pointer;transition:filter .15s ease,transform .1s ease}
+[data-btn]:hover{filter:brightness(1.06)}
+[data-btn]:active{transform:translateY(1px)}
+[data-row]:hover{background:var(--hover)}
+[data-field]{width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px;outline:none}
+[data-field]:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+[data-bottomnav]{display:none}
+@media(max-width:900px){
+  [data-side]{display:none !important}
+  [data-bottomnav]{display:flex !important}
+  [data-pad]{padding:16px 14px 110px !important}
+  [data-topbar]{padding:14px 16px !important}
+}
+@media(max-width:600px){
+  [data-hide-sm]{display:none !important}
+  [data-pad]{padding:13px 12px 112px !important;gap:13px !important}
+  [data-topbar]{padding:11px 13px !important;gap:10px !important}
+  [data-topbar] h1{font-size:16.5px !important}
+  [data-kpi]{grid-template-columns:repeat(2,1fr) !important;gap:10px !important}
+  [data-kpi] > div{padding:13px !important;border-radius:14px !important}
+  [data-kpi] > div span:nth-child(2),[data-kpi] > div div:nth-child(2){font-size:19px !important}
+  [data-card]{padding:16px !important;border-radius:16px !important}
+  table{font-size:12.5px}
+  [data-field]{font-size:16px !important}
+}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
+</style>
+</helmet>
+<div style="display:flex;min-height:100vh;background:var(--bg);color:var(--ink)">
+
+  <aside data-side style="width:246px;flex:none;background:var(--card);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh">
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 8px 18px">
+      <div style="width:34px;height:34px;border-radius:11px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px">₱</div>
+      <div style="display:flex;flex-direction:column;line-height:1.15">
+        <span style="font-weight:800;font-size:15px;letter-spacing:-.01em">ProfitPilot</span>
+        <span style="font-size:11px;color:var(--muted)">{{ businessName }}</span>
+      </div>
+    </div>
+
+    <button data-nav data-screen="dashboard" data-active="{{ nav.dashboard }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>
+      Dashboard
+    </button>
+    <button data-nav data-screen="products" data-active="{{ nav.products }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="5.5" width="15" height="12" rx="2"/><path d="M6.5 5.5V4a3.5 3.5 0 0 1 7 0v1.5"/></svg>
+      Products
+    </button>
+    <button data-nav data-screen="sales" data-active="{{ nav.sales }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15.5 8 9l3.5 3.5L17 5"/><path d="M13 5h4v4"/></svg>
+      Sales
+    </button>
+    <button data-nav data-screen="expenses" data-active="{{ nav.expenses }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="7.5"/><path d="M6.5 10h7"/></svg>
+      Expenses
+    </button>
+    <button data-nav data-screen="inventory" data-active="{{ nav.inventory }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2.5 6.5 10 3l7.5 3.5v7L10 17l-7.5-3.5z"/><path d="M2.5 6.5 10 10l7.5-3.5M10 10v7"/></svg>
+      Inventory
+    </button>
+    <button data-nav data-screen="calculator" data-active="{{ nav.calculator }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="2.5" width="12" height="15" rx="2"/><path d="M7 6.5h6M7 10h1.5M7 13.5h1.5M11.5 10h1.5M11.5 13.5h1.5"/></svg>
+      Profit Calculator
+    </button>
+    <button data-nav data-screen="reports" data-active="{{ nav.reports }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 17h14"/><rect x="4.5" y="9" width="3" height="6" rx="1"/><rect x="9" y="5.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="11" width="3" height="4" rx="1"/></svg>
+      Reports
+    </button>
+    <button data-nav data-screen="settings" data-active="{{ nav.settings }}" onClick="{{ go }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;background:transparent;border-radius:11px;color:var(--ink-2);font-size:14px;text-align:left;width:100%">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="2.8"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"/></svg>
+      Settings
+    </button>
+
+    <div style="margin-top:auto;border-radius:14px;padding:14px;background:{{ month.bg }}">
+      <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:{{ month.fg }}">This month</div>
+      <div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:{{ month.fg }}">{{ month.value }}</div>
+      <div style="font-size:12px;opacity:.85;color:{{ month.fg }}">{{ month.note }}</div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header data-topbar style="display:flex;align-items:center;gap:14px;padding:16px 28px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20">
+      <div style="display:flex;flex-direction:column;line-height:1.2;min-width:0">
+        <h1 style="margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pageTitle }}</h1>
+        <span style="font-size:12px;color:var(--muted)">{{ pageSub }}</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <button data-btn data-hide-sm data-screen="sales" onClick="{{ go }}" style="display:flex;align-items:center;gap:7px;border:0;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:10px 15px;border-radius:11px">＋ Record Sale</button>
+        <button data-btn onClick="{{ toggleTheme }}" title="Toggle light / dark" style="width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-size:14px">{{ themeIcon }}</button>
+        <div title="Signed in as owner" style="width:38px;height:38px;border-radius:11px;background:var(--green-soft);color:var(--green-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">{{ initials }}</div>
+      </div>
+    </header>
+
+    <div data-pad style="padding:24px 28px 60px;display:flex;flex-direction:column;gap:20px">
+
+      <!-- DASHBOARD -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div data-kpi style="display:grid;grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:14px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:7px">
+              <span style="font-size:12px;color:var(--muted);font-weight:600">{{ k.label }}</span>
+              <span style="font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ k.color }}">{{ k.value }}</span>
+              <span style="font-size:11.5px;color:var(--muted)">{{ k.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div>
+                <h2 style="margin:0;font-size:15px;font-weight:800">Sales, cost &amp; profit</h2>
+                <span style="font-size:12px;color:var(--muted)">Last 7 days</span>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:14px;font-size:11.5px;color:var(--muted)">
+                <span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--bar);display:inline-block"></i>Sales</span>
+                <span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--amber);display:inline-block"></i>Cost</span>
+                <span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--green);display:inline-block"></i>Profit</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:10px;margin-top:18px">
+              <sc-for list="{{ chart }}" as="d" hint-placeholder-count="7">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:9px">
+                  <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;height:158px;width:100%">
+                    <div title="Sales" style="width:26%;border-radius:5px 5px 0 0;background:var(--bar);height:{{ d.sh }}px"></div>
+                    <div title="Cost" style="width:26%;border-radius:5px 5px 0 0;background:var(--amber);height:{{ d.ch }}px"></div>
+                    <div title="Profit" style="width:26%;border-radius:5px 5px 0 0;background:var(--green);height:{{ d.ph }}px"></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--muted);font-weight:600">{{ d.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center">
+              <h2 style="margin:0;font-size:15px;font-weight:800">Top performing products</h2>
+              <button data-btn data-screen="reports" onClick="{{ go }}" style="margin-left:auto;border:0;background:transparent;color:var(--green-ink);font-size:12.5px;font-weight:700">View report →</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="font-size:13px">
+                <thead>
+                  <tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">
+                    <th style="padding:0 0 9px;font-weight:700">Product</th>
+                    <th style="padding:0 0 9px;font-weight:700;text-align:right">Units</th>
+                    <th style="padding:0 0 9px;font-weight:700;text-align:right">Revenue</th>
+                    <th style="padding:0 0 9px;font-weight:700;text-align:right">Profit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ topProducts }}" as="t" hint-placeholder-count="4">
+                    <tr data-row style="border-top:1px solid var(--line)">
+                      <td style="padding:11px 0;font-weight:700">{{ t.name }}<div style="font-size:11px;color:var(--muted);font-weight:500">{{ t.cat }}</div></td>
+                      <td style="padding:11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ t.units }}</td>
+                      <td style="padding:11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ t.revenue }}</td>
+                      <td style="padding:11px 0;text-align:right;font-variant-numeric:tabular-nums;font-weight:800;color:var(--green-ink)">{{ t.profit }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+          <h2 style="margin:0 0 12px;font-size:15px;font-weight:800">Recent transactions</h2>
+          <sc-for list="{{ recent }}" as="r" hint-placeholder-count="5">
+            <div data-row style="display:flex;align-items:center;gap:13px;padding:11px 8px;border-radius:12px">
+              <div style="width:34px;height:34px;flex:none;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;background:{{ r.bg }};color:{{ r.fg }}">{{ r.sign }}</div>
+              <div style="min-width:0">
+                <div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.title }}</div>
+                <div style="font-size:11.5px;color:var(--muted)">{{ r.meta }}</div>
+              </div>
+              <div style="margin-left:auto;text-align:right">
+                <div style="font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ r.fg }}">{{ r.amount }}</div>
+                <div style="font-size:11px;color:var(--muted)">{{ r.sub }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- PRODUCTS -->
+      <sc-if value="{{ isProducts }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <input data-field value="{{ search }}" onChange="{{ onSearch }}" placeholder="Search products…" style="max-width:280px" />
+          <span style="font-size:12.5px;color:var(--muted)">{{ productCount }} products</span>
+          <button data-btn data-screen="addProduct" onClick="{{ go }}" style="margin-left:auto;border:0;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:11px 16px;border-radius:11px">＋ Add Product</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px">
+          <sc-for list="{{ productCards }}" as="p" hint-placeholder-count="6">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:13px">
+              <div style="display:flex;align-items:flex-start;gap:11px">
+                <div style="width:42px;height:42px;flex:none;border-radius:13px;background:var(--green-soft);color:var(--green-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">{{ p.abbr }}</div>
+                <div style="min-width:0">
+                  <div style="font-size:15px;font-weight:800;letter-spacing:-.01em">{{ p.name }}</div>
+                  <div style="font-size:11.5px;color:var(--muted)">{{ p.cat }} · {{ p.sku }}</div>
+                </div>
+                <span style="margin-left:auto;flex:none;font-size:11px;font-weight:700;padding:5px 9px;border-radius:99px;background:{{ p.statusBg }};color:{{ p.statusFg }}">{{ p.status }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <div><div style="font-size:11px;color:var(--muted);font-weight:600">Selling price</div><div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">{{ p.price }}</div></div>
+                <div><div style="font-size:11px;color:var(--muted);font-weight:600">Unit cost</div><div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--amber)">{{ p.cost }}</div></div>
+                <div><div style="font-size:11px;color:var(--muted);font-weight:600">Profit / unit</div><div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--green-ink)">{{ p.profit }}</div></div>
+                <div><div style="font-size:11px;color:var(--muted);font-weight:600">Stock</div><div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">{{ p.stock }}</div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:5px"><span>Profit margin</span><span style="color:var(--green-ink);font-weight:800">{{ p.margin }}</span></div>
+                <div style="height:7px;border-radius:99px;background:var(--hover);overflow:hidden"><div style="height:100%;border-radius:99px;background:var(--green);width:{{ p.marginW }}%"></div></div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button data-btn data-id="{{ p.id }}" onClick="{{ openProduct }}" style="flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:12.5px;padding:9px;border-radius:10px">View</button>
+                <button data-btn data-id="{{ p.id }}" onClick="{{ editProduct }}" style="flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:12.5px;padding:9px;border-radius:10px">Edit</button>
+                <button data-btn data-id="{{ p.id }}" onClick="{{ askDelete }}" title="Delete product" style="border:1px solid var(--line);background:var(--card);color:var(--red);font-weight:700;font-size:12.5px;padding:9px 12px;border-radius:10px">Delete</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ noProducts }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--card);border:1px dashed var(--line);border-radius:18px;padding:54px 20px;text-align:center">
+            <div style="width:48px;height:48px;margin:0 auto 14px;border-radius:15px;background:var(--hover);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px">◻</div>
+            <div style="font-weight:800;font-size:15px">No products match “{{ search }}”</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:5px">Try another name, or add a new product to start tracking profit.</div>
+            <button data-btn data-screen="addProduct" onClick="{{ go }}" style="margin-top:16px;border:0;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:11px 18px;border-radius:11px">＋ Add Product</button>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <!-- ADD PRODUCT -->
+      <sc-if value="{{ isAddProduct }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:15px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Product details</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Product name
+                <input data-field name="name" value="{{ form.name }}" onChange="{{ onForm }}" placeholder="e.g. Gulaman Jelly" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Category
+                <select data-field name="cat" value="{{ form.cat }}" onChange="{{ onForm }}">
+                  <sc-for list="{{ categories }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+                </select>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">SKU / product code
+                <input data-field name="sku" value="{{ form.sku }}" onChange="{{ onForm }}" placeholder="GJ-001" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Selling price (₱)
+                <input data-field name="price" inputMode="decimal" value="{{ form.price }}" onChange="{{ onForm }}" placeholder="15.00" />
+              </label>
+            </div>
+            <div style="height:1px;background:var(--line)"></div>
+            <h2 style="margin:0;font-size:15px;font-weight:800">Cost breakdown <span style="font-weight:500;font-size:12px;color:var(--muted)">— per unit</span></h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Material cost
+                <input data-field name="mat" inputMode="decimal" value="{{ form.mat }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Packaging cost
+                <input data-field name="pack" inputMode="decimal" value="{{ form.pack }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Labor cost
+                <input data-field name="labor" inputMode="decimal" value="{{ form.labor }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Other cost
+                <input data-field name="other" inputMode="decimal" value="{{ form.other }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Initial stock
+                <input data-field name="stock" inputMode="numeric" value="{{ form.stock }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Unit
+                <select data-field name="unit" value="{{ form.unit }}" onChange="{{ onForm }}">
+                  <sc-for list="{{ units }}" as="u" hint-placeholder-count="4"><option value="{{ u }}">{{ u }}</option></sc-for>
+                </select>
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;padding-top:4px">
+              <button data-btn onClick="{{ saveProduct }}" style="border:0;background:var(--green);color:#fff;font-weight:700;font-size:13.5px;padding:12px 20px;border-radius:12px">{{ saveLabel }}</button>
+              <button data-btn data-screen="products" onClick="{{ go }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13.5px;padding:12px 20px;border-radius:12px">Cancel</button>
+            </div>
+          </div>
+
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;position:sticky;top:96px">
+            <div style="background:var(--green);border-radius:16px;padding:20px;color:#fff">
+              <div style="font-size:12px;opacity:.85;font-weight:600">Profit per unit</div>
+              <div style="font-size:36px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1">{{ calc.profit }}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+                <span style="background:rgba(255,255,255,.2);padding:5px 10px;border-radius:99px;font-size:12px;font-weight:700">Margin {{ calc.margin }}</span>
+                <span style="font-size:12px;opacity:.85">{{ calc.verdict }}</span>
+              </div>
+            </div>
+            <sc-for list="{{ calc.rows }}" as="c" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:13.5px">
+                <span style="color:var(--muted);font-weight:600">{{ c.label }}</span>
+                <span style="font-weight:800;font-variant-numeric:tabular-nums;color:{{ c.color }}">{{ c.value }}</span>
+              </div>
+            </sc-for>
+            <div style="height:1px;background:var(--line)"></div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6">Total cost = material + packaging + labor + other.<br/>Margin = profit ÷ selling price × 100.</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- PRODUCT DETAIL -->
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+        <button data-btn data-screen="products" onClick="{{ go }}" style="align-self:flex-start;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:10px">← Back to products</button>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px">
+            <svg viewBox="0 0 400 200" style="width:100%;height:150px;border-radius:14px;background:var(--hover)">
+              <defs><pattern id="stripes" width="12" height="12" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="6" height="12" fill="rgba(125,140,133,.16)"/></pattern></defs>
+              <rect width="400" height="200" fill="url(#stripes)"/>
+              <text x="200" y="105" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--muted)">product shot →  drop image here</text>
+            </svg>
+            <div>
+              <div style="font-size:20px;font-weight:800;letter-spacing:-.02em">{{ detail.name }}</div>
+              <div style="font-size:12.5px;color:var(--muted)">{{ detail.cat }} · {{ detail.sku }} · {{ detail.stockLabel }}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">
+              <sc-for list="{{ detail.facts }}" as="f" hint-placeholder-count="4">
+                <div style="background:var(--bg);border-radius:13px;padding:12px">
+                  <div style="font-size:11px;color:var(--muted);font-weight:600">{{ f.label }}</div>
+                  <div style="font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ f.color }}">{{ f.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:9px">
+              <button data-btn data-id="{{ detail.id }}" onClick="{{ editProduct }}" style="flex:1;border:0;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:11px;border-radius:11px">Edit product</button>
+              <button data-btn data-id="{{ detail.id }}" onClick="{{ openAddStock }}" style="flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;padding:11px;border-radius:11px">Add stock</button>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+              <h2 style="margin:0 0 14px;font-size:15px;font-weight:800">Sales performance</h2>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px">
+                <sc-for list="{{ detail.perf }}" as="f" hint-placeholder-count="4">
+                  <div style="background:var(--bg);border-radius:13px;padding:13px">
+                    <div style="font-size:11px;color:var(--muted);font-weight:600">{{ f.label }}</div>
+                    <div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ f.color }}">{{ f.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+              <div style="display:flex;align-items:center;gap:12px">
+                <h2 style="margin:0;font-size:15px;font-weight:800">Sales &amp; profit over time</h2>
+                <div style="margin-left:auto;display:flex;gap:12px;font-size:11.5px;color:var(--muted)">
+                  <span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--bar);display:inline-block"></i>Sales</span>
+                  <span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:var(--green);display:inline-block"></i>Profit</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:10px;margin-top:16px">
+                <sc-for list="{{ detail.chart }}" as="d" hint-placeholder-count="7">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:9px">
+                    <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;height:130px;width:100%">
+                      <div style="width:34%;border-radius:5px 5px 0 0;background:var(--bar);height:{{ d.sh }}px"></div>
+                      <div style="width:34%;border-radius:5px 5px 0 0;background:var(--green);height:{{ d.ph }}px"></div>
+                    </div>
+                    <span style="font-size:11px;color:var(--muted);font-weight:600">{{ d.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- SALES -->
+      <sc-if value="{{ isSales }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:15px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Record a sale</h2>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Product
+              <select data-field value="{{ sale.productId }}" onChange="{{ onSaleProduct }}">
+                <sc-for list="{{ productOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.id }}">{{ o.label }}</option></sc-for>
+              </select>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Quantity
+                <input data-field name="qty" inputMode="numeric" value="{{ sale.qty }}" onChange="{{ onSale }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Selling price (₱)
+                <input data-field name="price" inputMode="decimal" value="{{ sale.price }}" onChange="{{ onSale }}" />
+              </label>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:8px">Payment method</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <sc-for list="{{ methods }}" as="m" hint-placeholder-count="4">
+                  <button data-btn data-method="{{ m.name }}" onClick="{{ onMethod }}" style="border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};font-weight:700;font-size:12.5px;padding:9px 15px;border-radius:99px">{{ m.name }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ sale.stockWarning }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:9px;align-items:flex-start;background:var(--amber-soft);border-radius:12px;padding:11px 13px;font-size:12.5px;color:var(--ink-2)">
+                <span style="font-weight:800;color:var(--amber)">!</span><span>{{ sale.stockWarning }}</span>
+              </div>
+            </sc-if>
+            <button data-btn onClick="{{ recordSale }}" style="border:0;background:var(--green);color:#fff;font-weight:700;font-size:13.5px;padding:13px;border-radius:12px">Record sale · {{ sale.total }}</button>
+          </div>
+
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Sale summary</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <sc-for list="{{ sale.tiles }}" as="t" hint-placeholder-count="4">
+                <div style="background:{{ t.bg }};border-radius:14px;padding:15px">
+                  <div style="font-size:11.5px;color:var(--muted);font-weight:600">{{ t.label }}</div>
+                  <div style="font-size:21px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ t.color }}">{{ t.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="height:1px;background:var(--line)"></div>
+            <div style="display:flex;flex-direction:column;gap:9px;font-size:13px">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Revenue = price × qty</span><span style="font-weight:800;font-variant-numeric:tabular-nums">{{ sale.total }}</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Cost = unit cost × qty</span><span style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--amber)">{{ sale.cost }}</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Margin</span><span style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--green-ink)">{{ sale.margin }}</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Stock after sale</span><span style="font-weight:800;font-variant-numeric:tabular-nums">{{ sale.stockAfter }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+          <h2 style="margin:0 0 12px;font-size:15px;font-weight:800">Sales history</h2>
+          <div style="overflow-x:auto">
+            <table style="font-size:13px;min-width:720px">
+              <thead>
+                <tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">
+                  <th style="padding:0 10px 9px 0;font-weight:700">Date</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Product</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Qty</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Sales</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Cost</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Profit</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Payment</th>
+                  <th style="padding:0 0 9px;font-weight:700;text-align:right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ salesRows }}" as="s" hint-placeholder-count="6">
+                  <tr data-row style="border-top:1px solid var(--line)">
+                    <td style="padding:11px 10px 11px 0;color:var(--muted);white-space:nowrap">{{ s.date }}</td>
+                    <td style="padding:11px 10px 11px 0;font-weight:700">{{ s.product }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ s.qty }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ s.sales }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums;color:var(--amber)">{{ s.cost }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums;font-weight:800;color:var(--green-ink)">{{ s.profit }}</td>
+                    <td style="padding:11px 10px 11px 0"><span style="font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;background:var(--hover);color:var(--ink-2)">{{ s.method }}</span></td>
+                    <td style="padding:11px 0;text-align:right"><button data-btn data-id="{{ s.id }}" onClick="{{ askDeleteSale }}" style="border:1px solid var(--line);background:var(--card);color:var(--red);font-weight:700;font-size:12px;padding:6px 11px;border-radius:9px">Void</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- EXPENSES -->
+      <sc-if value="{{ isExpenses }}" hint-placeholder-val="{{ false }}">
+        <div data-kpi style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+          <sc-for list="{{ expenseKpis }}" as="k" hint-placeholder-count="3">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;box-shadow:var(--shadow)">
+              <div style="font-size:12px;color:var(--muted);font-weight:600">{{ k.label }}</div>
+              <div style="font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ k.color }};margin-top:6px">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px">{{ k.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Add expense</h2>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Description
+              <input data-field name="desc" value="{{ exp.desc }}" onChange="{{ onExp }}" placeholder="e.g. Tricycle delivery to market" />
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Category
+                <select data-field name="cat" value="{{ exp.cat }}" onChange="{{ onExp }}">
+                  <sc-for list="{{ expenseCats }}" as="c" hint-placeholder-count="6"><option value="{{ c }}">{{ c }}</option></sc-for>
+                </select>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Amount (₱)
+                <input data-field name="amount" inputMode="decimal" value="{{ exp.amount }}" onChange="{{ onExp }}" placeholder="250.00" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Date
+                <input data-field name="date" type="date" value="{{ exp.date }}" onChange="{{ onExp }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Notes
+                <input data-field name="notes" value="{{ exp.notes }}" onChange="{{ onExp }}" placeholder="Optional" />
+              </label>
+            </div>
+            <button data-btn onClick="{{ addExpense }}" style="border:0;background:var(--red);color:#fff;font-weight:700;font-size:13.5px;padding:12px;border-radius:12px">Add expense</button>
+          </div>
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:13px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Spending by category <span style="font-weight:500;font-size:12px;color:var(--muted)">— this month</span></h2>
+            <sc-for list="{{ expenseBreakdown }}" as="b" hint-placeholder-count="6">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700">{{ b.cat }}</span><span style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink-2)">{{ b.amount }}</span></div>
+                <div style="height:8px;border-radius:99px;background:var(--hover);overflow:hidden"><div style="height:100%;border-radius:99px;background:{{ b.color }};width:{{ b.w }}%"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+          <h2 style="margin:0 0 12px;font-size:15px;font-weight:800">Expense log</h2>
+          <div style="overflow-x:auto">
+            <table style="font-size:13px;min-width:600px">
+              <thead>
+                <tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">
+                  <th style="padding:0 10px 9px 0;font-weight:700">Date</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Description</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Category</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Amount</th>
+                  <th style="padding:0 0 9px;font-weight:700;text-align:right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ expenseRows }}" as="e" hint-placeholder-count="6">
+                  <tr data-row style="border-top:1px solid var(--line)">
+                    <td style="padding:11px 10px 11px 0;color:var(--muted);white-space:nowrap">{{ e.date }}</td>
+                    <td style="padding:11px 10px 11px 0;font-weight:700">{{ e.desc }}<div style="font-size:11px;color:var(--muted);font-weight:500">{{ e.notes }}</div></td>
+                    <td style="padding:11px 10px 11px 0"><span style="font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;background:var(--red-soft);color:var(--red)">{{ e.cat }}</span></td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--red)">{{ e.amount }}</td>
+                    <td style="padding:11px 0;text-align:right"><button data-btn data-id="{{ e.id }}" onClick="{{ deleteExpense }}" style="border:1px solid var(--line);background:var(--card);color:var(--red);font-weight:700;font-size:12px;padding:6px 11px;border-radius:9px">Delete</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- INVENTORY -->
+      <sc-if value="{{ isInventory }}" hint-placeholder-val="{{ false }}">
+        <div data-kpi style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">
+          <sc-for list="{{ invKpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;box-shadow:var(--shadow)">
+              <div style="font-size:12px;color:var(--muted);font-weight:600">{{ k.label }}</div>
+              <div style="font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ k.color }};margin-top:6px">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px">{{ k.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Stock on hand</h2>
+            <span style="font-size:12px;color:var(--muted)">Low-stock threshold: {{ lowStock }} units</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="font-size:13px;min-width:700px">
+              <thead>
+                <tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em">
+                  <th style="padding:0 10px 9px 0;font-weight:700">Product</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Stock</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Unit</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Cost / unit</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700;text-align:right">Inventory value</th>
+                  <th style="padding:0 10px 9px 0;font-weight:700">Status</th>
+                  <th style="padding:0 0 9px;font-weight:700;text-align:right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ invRows }}" as="r" hint-placeholder-count="6">
+                  <tr data-row style="border-top:1px solid var(--line)">
+                    <td style="padding:11px 10px 11px 0;font-weight:700">{{ r.name }}<div style="font-size:11px;color:var(--muted);font-weight:500">{{ r.cat }}</div></td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums;font-weight:800">{{ r.stock }}</td>
+                    <td style="padding:11px 10px 11px 0;color:var(--muted)">{{ r.unit }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ r.cost }}</td>
+                    <td style="padding:11px 10px 11px 0;text-align:right;font-variant-numeric:tabular-nums">{{ r.value }}</td>
+                    <td style="padding:11px 10px 11px 0"><span style="font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;background:{{ r.statusBg }};color:{{ r.statusFg }}">{{ r.status }}</span></td>
+                    <td style="padding:11px 0;text-align:right;white-space:nowrap">
+                      <button data-btn data-id="{{ r.id }}" onClick="{{ openAddStock }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:12px;padding:6px 11px;border-radius:9px">Add stock</button>
+                      <button data-btn data-id="{{ r.id }}" onClick="{{ openProduct }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12px;padding:6px 11px;border-radius:9px;margin-left:6px">History</button>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CALCULATOR -->
+      <sc-if value="{{ isCalculator }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">What am I earning per unit?</h2>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Product name
+              <input data-field name="name" value="{{ form.name }}" onChange="{{ onForm }}" placeholder="e.g. Gulaman Jelly" />
+            </label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Selling price (₱)
+                <input data-field name="price" inputMode="decimal" value="{{ form.price }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Material cost
+                <input data-field name="mat" inputMode="decimal" value="{{ form.mat }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Packaging cost
+                <input data-field name="pack" inputMode="decimal" value="{{ form.pack }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Labor cost
+                <input data-field name="labor" inputMode="decimal" value="{{ form.labor }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Other cost
+                <input data-field name="other" inputMode="decimal" value="{{ form.other }}" onChange="{{ onForm }}" />
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Quantity
+                <input data-field name="qty" inputMode="numeric" value="{{ form.qty }}" onChange="{{ onForm }}" />
+              </label>
+            </div>
+            <div style="display:flex;gap:9px;flex-wrap:wrap">
+              <button data-btn onClick="{{ saveProduct }}" style="border:0;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:11px 17px;border-radius:11px">Save as product</button>
+              <button data-btn onClick="{{ resetCalc }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13px;padding:11px 17px;border-radius:11px">Reset</button>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="background:linear-gradient(180deg,var(--green),var(--green-ink));border-radius:20px;padding:24px;color:#fff;box-shadow:var(--shadow)">
+              <div style="font-size:12.5px;opacity:.85;font-weight:600">Profit per unit</div>
+              <div style="font-size:46px;font-weight:800;letter-spacing:-.035em;line-height:1.05;font-variant-numeric:tabular-nums">{{ calc.profit }}</div>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                <span style="background:rgba(255,255,255,.2);padding:6px 12px;border-radius:99px;font-size:12.5px;font-weight:700">Margin {{ calc.margin }}</span>
+                <span style="background:rgba(255,255,255,.2);padding:6px 12px;border-radius:99px;font-size:12.5px;font-weight:700">Cost {{ calc.cost }}</span>
+              </div>
+              <div style="height:1px;background:rgba(255,255,255,.25);margin:18px 0"></div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                <div><div style="font-size:11.5px;opacity:.85;font-weight:600">Revenue ×{{ calc.qty }}</div><div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums">{{ calc.revenue }}</div></div>
+                <div><div style="font-size:11.5px;opacity:.85;font-weight:600">Total cost</div><div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums">{{ calc.totalCost }}</div></div>
+                <div><div style="font-size:11.5px;opacity:.85;font-weight:600">Expected profit</div><div style="font-size:19px;font-weight:800;font-variant-numeric:tabular-nums">{{ calc.totalProfit }}</div></div>
+              </div>
+            </div>
+
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+              <div>
+                <h2 style="margin:0;font-size:15px;font-weight:800">Target profit calculator</h2>
+                <span style="font-size:12px;color:var(--muted)">Pick the margin you want — we compute the price to charge.</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:12px;color:var(--muted);font-weight:700">Desired margin</span>
+                <span style="margin-left:auto;font-size:26px;font-weight:800;color:var(--green-ink);font-variant-numeric:tabular-nums">{{ target.margin }}%</span>
+              </div>
+              <input type="range" min="5" max="80" step="1" value="{{ target.margin }}" onChange="{{ onMargin }}" style="width:100%;accent-color:var(--green)" />
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>5%</span><span>40%</span><span>80%</span></div>
+              <div style="background:var(--green-soft);border-radius:15px;padding:17px;display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:12px;font-weight:700;color:var(--green-ink)">Recommended selling price</span>
+                <span style="font-size:32px;font-weight:800;letter-spacing:-.03em;color:var(--green-ink);font-variant-numeric:tabular-nums">{{ target.price }}</span>
+                <span style="font-size:12px;color:var(--green-ink);opacity:.85">On a unit cost of {{ calc.cost }} that's {{ target.profit }} profit per unit.</span>
+              </div>
+              <button data-btn onClick="{{ applyTarget }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;padding:11px;border-radius:11px">Use this price above</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- REPORTS -->
+      <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:var(--shadow);display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2);min-width:150px">Date range
+            <select data-field name="range" value="{{ filter.range }}" onChange="{{ onFilter }}">
+              <option value="Last 7 days">Last 7 days</option><option value="Last 30 days">Last 30 days</option><option value="This month">This month</option><option value="This quarter">This quarter</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2);min-width:150px">Product
+            <select data-field name="product" value="{{ filter.product }}" onChange="{{ onFilter }}">
+              <option value="All products">All products</option>
+              <sc-for list="{{ productOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.name }}">{{ o.name }}</option></sc-for>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2);min-width:150px">Category
+            <select data-field name="category" value="{{ filter.category }}" onChange="{{ onFilter }}">
+              <option value="All categories">All categories</option>
+              <sc-for list="{{ categories }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+            </select>
+          </label>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button data-btn data-kind="PDF" onClick="{{ exportReport }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12.5px;padding:11px 15px;border-radius:11px">Export PDF</button>
+            <button data-btn data-kind="Excel" onClick="{{ exportReport }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12.5px;padding:11px 15px;border-radius:11px">Export Excel</button>
+            <button data-btn data-kind="print" onClick="{{ exportReport }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12.5px;padding:11px 15px;border-radius:11px">Print</button>
+          </div>
+        </div>
+        <div data-kpi style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+          <sc-for list="{{ reportKpis }}" as="k" hint-placeholder-count="5">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;box-shadow:var(--shadow)">
+              <div style="font-size:12px;color:var(--muted);font-weight:600">{{ k.label }}</div>
+              <div style="font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ k.color }};margin-top:6px">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:4px">{{ k.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Sales &amp; profit trend</h2>
+            <div style="display:flex;align-items:flex-end;gap:10px;margin-top:16px">
+              <sc-for list="{{ chart }}" as="d" hint-placeholder-count="7">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:9px">
+                  <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;height:140px;width:100%">
+                    <div style="width:34%;border-radius:5px 5px 0 0;background:var(--bar);height:{{ d.sh }}px"></div>
+                    <div style="width:34%;border-radius:5px 5px 0 0;background:var(--green);height:{{ d.ph }}px"></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--muted);font-weight:600">{{ d.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:13px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Profit by product</h2>
+            <sc-for list="{{ profitByProduct }}" as="b" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700">{{ b.name }}</span><span style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--green-ink)">{{ b.value }}</span></div>
+                <div style="height:8px;border-radius:99px;background:var(--hover);overflow:hidden"><div style="height:100%;border-radius:99px;background:var(--green);width:{{ b.w }}%"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:13px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Expense breakdown</h2>
+            <sc-for list="{{ expenseBreakdown }}" as="b" hint-placeholder-count="6">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700">{{ b.cat }}</span><span style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink-2)">{{ b.amount }}</span></div>
+                <div style="height:8px;border-radius:99px;background:var(--hover);overflow:hidden"><div style="height:100%;border-radius:99px;background:{{ b.color }};width:{{ b.w }}%"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start">
+          <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+            <h2 style="margin:0;font-size:15px;font-weight:800">Business profile</h2>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Business name
+              <input data-field name="businessName" value="{{ settings.businessName }}" onChange="{{ onSetting }}" />
+            </label>
+            <div style="display:flex;align-items:center;gap:13px">
+              <div style="width:54px;height:54px;border-radius:16px;background:var(--green-soft);color:var(--green-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px">{{ initials }}</div>
+              <button data-btn onClick="{{ notImplemented }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:12.5px;padding:10px 15px;border-radius:11px">Upload logo</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Currency
+                <select data-field name="currency" value="{{ settings.currency }}" onChange="{{ onSetting }}">
+                  <option value="PHP">₱ Philippine Peso</option><option value="USD">$ US Dollar</option>
+                </select>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Low stock threshold
+                <input data-field name="lowStock" inputMode="numeric" value="{{ settings.lowStock }}" onChange="{{ onSetting }}" />
+              </label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">
+              <span style="display:flex;align-items:baseline;gap:5px">Default profit margin<span style="color:var(--green-ink);font-weight:800">{{ settings.defaultMargin }}%</span></span>
+              <input type="range" min="10" max="70" step="1" value="{{ settings.defaultMargin }}" onChange="{{ onDefaultMargin }}" style="width:100%;accent-color:var(--green)" />
+            </label>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:15px">
+              <h2 style="margin:0;font-size:15px;font-weight:800">Appearance</h2>
+              <div style="display:flex;gap:10px">
+                <button data-btn data-theme-set="light" onClick="{{ setTheme }}" style="flex:1;border:1px solid {{ theme.lightBorder }};background:var(--card);color:var(--ink);font-weight:700;font-size:13px;padding:14px;border-radius:13px">☀ Light</button>
+                <button data-btn data-theme-set="dark" onClick="{{ setTheme }}" style="flex:1;border:1px solid {{ theme.darkBorder }};background:var(--card);color:var(--ink);font-weight:700;font-size:13px;padding:14px;border-radius:13px">☾ Dark</button>
+              </div>
+            </div>
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px">
+              <div>
+                <h2 style="margin:0 0 9px;font-size:15px;font-weight:800">Categories</h2>
+                <div style="display:flex;flex-wrap:wrap;gap:7px">
+                  <sc-for list="{{ categories }}" as="c" hint-placeholder-count="5"><span style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:var(--hover);color:var(--ink-2)">{{ c }}</span></sc-for>
+                </div>
+              </div>
+              <div>
+                <h2 style="margin:0 0 9px;font-size:15px;font-weight:800">Units</h2>
+                <div style="display:flex;flex-wrap:wrap;gap:7px">
+                  <sc-for list="{{ units }}" as="u" hint-placeholder-count="5"><span style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:var(--hover);color:var(--ink-2)">{{ u }}</span></sc-for>
+                </div>
+              </div>
+              <div>
+                <h2 style="margin:0 0 9px;font-size:15px;font-weight:800">Payment methods</h2>
+                <div style="display:flex;flex-wrap:wrap;gap:7px">
+                  <sc-for list="{{ methods }}" as="m" hint-placeholder-count="4"><span style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:var(--hover);color:var(--ink-2)">{{ m.name }}</span></sc-for>
+                </div>
+              </div>
+            </div>
+            <div data-card style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;gap:10px;flex-wrap:wrap">
+              <button data-btn onClick="{{ notImplemented }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13px;padding:11px 16px;border-radius:11px">Back up data</button>
+              <button data-btn onClick="{{ notImplemented }}" style="border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13px;padding:11px 16px;border-radius:11px">Restore</button>
+              <button data-btn onClick="{{ askReset }}" style="border:1px solid var(--line);background:var(--card);color:var(--red);font-weight:700;font-size:13px;padding:11px 16px;border-radius:11px">Reset sample data</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <nav data-bottomnav style="position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--card);border-top:1px solid var(--line);padding:9px 8px calc(9px + env(safe-area-inset-bottom));justify-content:space-around;align-items:center">
+    <button data-nav data-screen="dashboard" data-active="{{ nav.dashboard }}" onClick="{{ go }}" style="flex:1;border:0;background:transparent;border-radius:12px;padding:7px 4px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>Home
+    </button>
+    <button data-nav data-screen="products" data-active="{{ nav.products }}" onClick="{{ go }}" style="flex:1;border:0;background:transparent;border-radius:12px;padding:7px 4px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="5.5" width="15" height="12" rx="2"/><path d="M6.5 5.5V4a3.5 3.5 0 0 1 7 0v1.5"/></svg>Products
+    </button>
+    <button data-btn data-screen="sales" onClick="{{ go }}" style="flex:none;border:0;background:var(--green);color:#fff;border-radius:16px;width:52px;height:46px;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 4px">＋</button>
+    <button data-nav data-screen="calculator" data-active="{{ nav.calculator }}" onClick="{{ go }}" style="flex:1;border:0;background:transparent;border-radius:12px;padding:7px 4px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="2.5" width="12" height="15" rx="2"/><path d="M7 6.5h6M7 10h1.5M7 13.5h1.5M11.5 10h1.5M11.5 13.5h1.5"/></svg>Calc
+    </button>
+    <button data-nav data-screen="reports" data-active="{{ nav.reports }}" onClick="{{ go }}" style="flex:1;border:0;background:transparent;border-radius:12px;padding:7px 4px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 17h14"/><rect x="4.5" y="9" width="3" height="6" rx="1"/><rect x="9" y="5.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="11" width="3" height="4" rx="1"/></svg>Reports
+    </button>
+  </nav>
+
+  <sc-if value="{{ toast.show }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:26px;z-index:60;display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);padding:13px 18px;border-radius:14px;box-shadow:0 18px 40px -18px rgba(0,0,0,.6);font-size:13.5px;font-weight:700;animation:toastIn .22s ease">
+      <span style="width:19px;height:19px;border-radius:99px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px">✓</span>{{ toast.msg }}
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirm.show }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:70;background:rgba(10,16,14,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .15s ease">
+      <div style="background:var(--card);border-radius:20px;padding:24px;max-width:390px;width:100%;box-shadow:0 30px 60px -30px rgba(0,0,0,.5);animation:popIn .2s ease">
+        <div style="width:42px;height:42px;border-radius:13px;background:var(--red-soft);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800">!</div>
+        <h3 style="margin:14px 0 6px;font-size:17px;font-weight:800">{{ confirm.title }}</h3>
+        <p style="margin:0;font-size:13.5px;color:var(--muted);line-height:1.55">{{ confirm.body }}</p>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button data-btn onClick="{{ closeConfirm }}" style="flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13.5px;padding:12px;border-radius:12px">Cancel</button>
+          <button data-btn onClick="{{ confirmAction }}" style="flex:1;border:0;background:var(--red);color:#fff;font-weight:700;font-size:13.5px;padding:12px;border-radius:12px">{{ confirm.cta }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ stockModal.show }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:70;background:rgba(10,16,14,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .15s ease">
+      <div style="background:var(--card);border-radius:20px;padding:24px;max-width:390px;width:100%;box-shadow:0 30px 60px -30px rgba(0,0,0,.5);animation:popIn .2s ease">
+        <h3 style="margin:0 0 4px;font-size:17px;font-weight:800">Add stock</h3>
+        <p style="margin:0 0 16px;font-size:13px;color:var(--muted)">{{ stockModal.label }}</p>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)">Quantity to add
+          <input data-field inputMode="numeric" value="{{ stockModal.qty }}" onChange="{{ onStockQty }}" />
+        </label>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button data-btn onClick="{{ closeStock }}" style="flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-weight:700;font-size:13.5px;padding:12px;border-radius:12px">Cancel</button>
+          <button data-btn onClick="{{ saveStock }}" style="flex:1;border:0;background:var(--green);color:#fff;font-weight:700;font-size:13.5px;padding:12px;border-radius:12px">Add stock</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;businessName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Aling Nena's Kitchen&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;defaultMargin&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:40,&quot;min&quot;:10,&quot;max&quot;:70,&quot;step&quot;:1,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.60 0.14 152)&quot;,&quot;options&quot;:[&quot;oklch(0.60 0.14 152)&quot;,&quot;oklch(0.58 0.13 190)&quot;,&quot;oklch(0.55 0.15 265)&quot;],&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const P = (id,name,cat,sku,price,mat,pack,labor,other,stock,unit)=>({id,name,cat,sku,price,mat,pack,labor,other,stock,unit});
+    this.state = {
+      screen: 'dashboard',
+      theme: 'light',
+      search: '',
+      editingId: null,
+      products: [
+        P(1,'Gulaman Jelly','Beverages','GJ-001',15,5,1,1.5,0.5,120,'cups'),
+        P(2,'Special Burger','Food','BG-002',50,22,4,6,2,42,'pcs'),
+        P(3,'Wintermelon Milk Tea','Beverages','MT-003',50,18,5,5,2,8,'cups'),
+        P(4,'Buko Pandan','Desserts','BP-004',45,15,4,5,1,0,'tubs'),
+        P(5,'Siomai (4 pcs)','Food','SM-005',30,11,2,3,1,64,'packs'),
+        P(6,'Puto Cheese','Snacks','PC-006',12,4,0.75,1.25,0.5,210,'pcs')
+      ],
+      sales: [
+        {id:101,pid:2,qty:30,price:50,method:'Cash',date:'Today, 2:40 PM',day:0},
+        {id:102,pid:3,qty:15,price:50,method:'GCash',date:'Today, 1:05 PM',day:0},
+        {id:103,pid:1,qty:40,price:15,method:'Cash',date:'Today, 11:20 AM',day:0},
+        {id:104,pid:5,qty:13,price:30,method:'GCash',date:'Today, 9:15 AM',day:0},
+        {id:105,pid:6,qty:55,price:12,method:'Cash',date:'Aug 11, 4:30 PM',day:1},
+        {id:106,pid:2,qty:22,price:50,method:'Bank Transfer',date:'Aug 11, 12:10 PM',day:1},
+        {id:107,pid:1,qty:38,price:15,method:'Cash',date:'Aug 10, 3:00 PM',day:2},
+        {id:108,pid:3,qty:12,price:50,method:'GCash',date:'Aug 10, 10:45 AM',day:2},
+        {id:109,pid:2,qty:60,price:50,method:'Cash',date:'Aug 9, 5:20 PM',day:3},
+        {id:110,pid:3,qty:45,price:50,method:'GCash',date:'Aug 9, 2:00 PM',day:3},
+        {id:111,pid:1,qty:150,price:15,method:'Cash',date:'Aug 8, 4:10 PM',day:4},
+        {id:112,pid:6,qty:180,price:12,method:'Cash',date:'Aug 7, 3:35 PM',day:5},
+        {id:113,pid:5,qty:70,price:30,method:'Bank Transfer',date:'Aug 6, 1:15 PM',day:6},
+        {id:114,pid:4,qty:50,price:45,method:'GCash',date:'Aug 5, 11:50 AM',day:7}
+      ],
+      expenses: [
+        {id:201,desc:'Tricycle delivery to Bagong Silang',cat:'Transportation',amount:250,date:'Aug 12',notes:'Morning drop-off'},
+        {id:202,desc:'Plastic cups & straws (500 pcs)',cat:'Packaging',amount:350,date:'Aug 12',notes:''},
+        {id:203,desc:'Sugar, gulaman powder, milk',cat:'Supplies',amount:250,date:'Aug 12',notes:'Palengke run'},
+        {id:204,desc:'Meralco bill',cat:'Utilities',amount:1850,date:'Aug 8',notes:'July consumption'},
+        {id:205,desc:'Facebook boosted post',cat:'Marketing',amount:500,date:'Aug 6',notes:'3-day boost'},
+        {id:206,desc:'Stall rent — Aug',cat:'Rent',amount:3500,date:'Aug 1',notes:''},
+        {id:207,desc:'Grab delivery fees',cat:'Delivery',amount:420,date:'Aug 4',notes:''}
+      ],
+      form: {name:'Gulaman Jelly',cat:'Beverages',sku:'GJ-007',price:'15',mat:'5',pack:'1',labor:'1.5',other:'0.5',stock:'100',unit:'cups',qty:'100'},
+      sale: {productId:1,qty:'10',price:'15',method:'Cash'},
+      exp: {desc:'',cat:'Transportation',amount:'',date:'2026-08-12',notes:''},
+      filter: {range:'Last 7 days',product:'All products',category:'All categories'},
+      settings: {businessName: props.businessName || "Aling Nena's Kitchen", currency:'PHP', lowStock:15, defaultMargin: props.defaultMargin || 40},
+      target: {margin: props.defaultMargin || 40},
+      toast: {show:false,msg:''},
+      confirm: {show:false,title:'',body:'',cta:'',kind:null,id:null},
+      stockModal: {show:false,id:null,label:'',qty:'50'}
+    };
+  }
+  componentDidMount(){ this.applyChrome(); }
+  componentDidUpdate(){ this.applyChrome(); }
+  applyChrome(){
+    const root = document.documentElement;
+    root.setAttribute('data-theme', this.state.theme);
+    const accent = this.props.accent;
+    if (accent) root.style.setProperty('--green', accent);
+  }
+  money(n){ return '₱' + (Number(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  money0(n){ return '₱' + Math.round(Number(n)||0).toLocaleString('en-PH'); }
+  num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  unitCost(p){ return p.mat + p.pack + p.labor + p.other; }
+  toast(msg){
+    clearTimeout(this._t);
+    this.setState({toast:{show:true,msg}});
+    this._t = setTimeout(()=>this.setState({toast:{show:false,msg:''}}), 2600);
+  }
+  productById(id){ return this.state.products.find(p=>p.id===Number(id)); }
+  statusOf(p){
+    const low = Number(this.state.settings.lowStock)||10;
+    if (p.stock <= 0) return {label:'Out of stock', bg:'var(--red-soft)', fg:'var(--red)'};
+    if (p.stock <= low) return {label:'Low stock', bg:'var(--amber-soft)', fg:'var(--amber)'};
+    return {label:'In stock', bg:'var(--green-soft)', fg:'var(--green-ink)'};
+  }
+  saleStats(s){
+    const p = this.productById(s.pid);
+    const cost = p ? this.unitCost(p)*s.qty : 0;
+    const rev = s.qty * s.price;
+    return {rev, cost, profit: rev-cost};
+  }
+
+  renderVals(){
+    const st = this.state, S = st.screen;
+    const m = n=>this.money(n), m0 = n=>this.money0(n);
+
+    const todaySales = st.sales.filter(s=>s.day===0).map(s=>({...s, ...this.saleStats(s)}));
+    const todayRev = todaySales.reduce((a,s)=>a+s.rev,0);
+    const todayProfit = todaySales.reduce((a,s)=>a+s.profit,0);
+    const todayUnits = todaySales.reduce((a,s)=>a+s.qty,0);
+    const todayExp = st.expenses.filter(e=>e.date==='Aug 12').reduce((a,e)=>a+e.amount,0);
+    const monthExp = st.expenses.reduce((a,e)=>a+e.amount,0);
+    const invValue = st.products.reduce((a,p)=>a+this.unitCost(p)*p.stock,0);
+    const allStats = st.sales.map(s=>({...s, ...this.saleStats(s)}));
+    const grossProfit = allStats.reduce((a,s)=>a+s.profit,0);
+    const totalRev = allStats.reduce((a,s)=>a+s.rev,0);
+    const totalCost = allStats.reduce((a,s)=>a+s.cost,0);
+    const unitsSold = allStats.reduce((a,s)=>a+s.qty,0);
+
+    const titles = {
+      dashboard:['Dashboard','Here is how the business is doing today'],
+      products:['Products','Costs, prices and margin for every item you sell'],
+      addProduct:[st.editingId?'Edit product':'Add product','Enter your costs — profit is computed as you type'],
+      detail:['Product details','Performance for a single product'],
+      sales:['Sales','Record a sale and see the profit instantly'],
+      expenses:['Expenses','Everything you spend to keep the business running'],
+      inventory:['Inventory','Stock levels and what they are worth'],
+      calculator:['Profit Calculator','Price your product with confidence'],
+      reports:['Reports','Trends across products, sales and spending'],
+      settings:['Settings','Business profile, defaults and appearance']
+    };
+    const t = titles[S] || titles.dashboard;
+
+    const chartRaw = [
+      {label:'Wed', s:2480}, {label:'Thu', s:3120}, {label:'Fri', s:4260}, {label:'Sat', s:5180},
+      {label:'Sun', s:4720}, {label:'Mon', s:2960}, {label:'Tue', s:todayRev||3240}
+    ].map(d=>({...d, c: d.s*0.63, p: d.s*0.37}));
+    const maxS = Math.max(...chartRaw.map(d=>d.s));
+    const chart = chartRaw.map(d=>({label:d.label, sh:Math.round(d.s/maxS*150), ch:Math.round(d.c/maxS*150), ph:Math.round(d.p/maxS*150)}));
+
+    const perProduct = st.products.map(p=>{
+      const rows = allStats.filter(s=>s.pid===p.id);
+      return {p, units: rows.reduce((a,s)=>a+s.qty,0), revenue: rows.reduce((a,s)=>a+s.rev,0), profit: rows.reduce((a,s)=>a+s.profit,0)};
+    }).sort((a,b)=>b.profit-a.profit);
+
+    const catColors = {Transportation:'var(--amber)',Packaging:'var(--red)',Utilities:'var(--bar)',Marketing:'var(--amber)',Delivery:'var(--red)',Rent:'var(--bar)',Supplies:'var(--amber)',Miscellaneous:'var(--muted)'};
+    const byCat = {};
+    st.expenses.forEach(e=>{ byCat[e.cat] = (byCat[e.cat]||0)+e.amount; });
+    const catList = Object.keys(byCat).map(k=>({cat:k, raw:byCat[k]})).sort((a,b)=>b.raw-a.raw);
+    const maxCat = catList.length ? catList[0].raw : 1;
+    const expenseBreakdown = catList.map(c=>({cat:c.cat, amount:m0(c.raw), w:Math.round(c.raw/maxCat*100), color:catColors[c.cat]||'var(--muted)'}));
+
+    // live product / calculator math
+    const f = st.form;
+    const cost = this.num(f.mat)+this.num(f.pack)+this.num(f.labor)+this.num(f.other);
+    const price = this.num(f.price);
+    const profit = price - cost;
+    const margin = price>0 ? profit/price*100 : 0;
+    const qty = Math.max(0, Math.round(this.num(f.qty)));
+    const calc = {
+      cost:m(cost), profit:m(profit), margin: margin.toFixed(2)+'%',
+      qty, revenue:m(price*qty), totalCost:m(cost*qty), totalProfit:m(profit*qty),
+      verdict: margin>=40 ? 'Healthy margin' : margin>=20 ? 'Thin — consider raising price' : profit<0 ? 'Losing money per unit' : 'Very thin margin',
+      rows:[
+        {label:'Selling price', value:m(price), color:'var(--ink)'},
+        {label:'Total unit cost', value:m(cost), color:'var(--amber)'},
+        {label:'Profit per unit', value:m(profit), color: profit>=0?'var(--green-ink)':'var(--red)'},
+        {label:'Profit margin', value: margin.toFixed(2)+'%', color: profit>=0?'var(--green-ink)':'var(--red)'},
+        {label:'Break-even price', value:m(cost), color:'var(--muted)'}
+      ]
+    };
+    const tm = Math.min(95, Math.max(1, this.state.target.margin));
+    const targetPrice = cost/(1-tm/100);
+    const target = {margin:tm, price:m(targetPrice), profit:m(targetPrice-cost)};
+
+    // sale math
+    const sp = this.productById(st.sale.productId) || st.products[0];
+    const sQty = Math.max(0, Math.round(this.num(st.sale.qty)));
+    const sPrice = this.num(st.sale.price);
+    const sCost = sp ? this.unitCost(sp)*sQty : 0;
+    const sRev = sQty*sPrice;
+    const sProfit = sRev - sCost;
+    const stockAfter = sp ? sp.stock - sQty : 0;
+    const sale = {
+      productId: st.sale.productId, qty: st.sale.qty, price: st.sale.price,
+      total: m(sRev), cost: m(sCost),
+      margin: sRev>0 ? (sProfit/sRev*100).toFixed(1)+'%' : '—',
+      stockAfter: sp ? stockAfter + ' ' + sp.unit : '—',
+      stockWarning: sp && stockAfter < 0 ? 'Only ' + sp.stock + ' ' + sp.unit + ' left in stock — recording this sale will oversell.' : (sp && sp.stock === 0 ? sp.name + ' is out of stock. Add stock first.' : ''),
+      tiles: [
+        {label:'Quantity', value: String(sQty), color:'var(--ink)', bg:'var(--bg)'},
+        {label:'Unit price', value:m(sPrice), color:'var(--ink)', bg:'var(--bg)'},
+        {label:'Sales', value:m(sRev), color:'var(--ink)', bg:'var(--bg)'},
+        {label:'Profit', value:m(sProfit), color: sProfit>=0?'var(--green-ink)':'var(--red)', bg:'var(--green-soft)'}
+      ]
+    };
+
+    const q = st.search.trim().toLowerCase();
+    const filtered = st.products.filter(p=>!q || p.name.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
+
+    const detailP = this.productById(st.editingId) || st.products[0];
+    let detail = {name:'—',cat:'',sku:'',stockLabel:'',facts:[],perf:[],chart:[],id:0};
+    if (detailP){
+      const dRows = allStats.filter(s=>s.pid===detailP.id);
+      const dUnits = dRows.reduce((a,s)=>a+s.qty,0), dRev = dRows.reduce((a,s)=>a+s.rev,0);
+      const dCost = dRows.reduce((a,s)=>a+s.cost,0), dProfit = dRev-dCost;
+      const uc = this.unitCost(detailP), pm = detailP.price>0 ? (detailP.price-uc)/detailP.price*100 : 0;
+      const dChartRaw = [0.5,0.7,1,0.85,0.6,0.9,0.75].map((k,i)=>({label:['Wed','Thu','Fri','Sat','Sun','Mon','Tue'][i], s: dRev? dRev*k/3 : 400*k}));
+      const dMax = Math.max(...dChartRaw.map(d=>d.s));
+      detail = {
+        id: detailP.id, name: detailP.name, cat: detailP.cat, sku: detailP.sku,
+        stockLabel: detailP.stock + ' ' + detailP.unit + ' on hand',
+        facts:[
+          {label:'Selling price', value:m(detailP.price), color:'var(--ink)'},
+          {label:'Unit cost', value:m(uc), color:'var(--amber)'},
+          {label:'Profit / unit', value:m(detailP.price-uc), color:'var(--green-ink)'},
+          {label:'Margin', value: pm.toFixed(1)+'%', color:'var(--green-ink)'}
+        ],
+        perf:[
+          {label:'Total units sold', value:String(dUnits), color:'var(--ink)'},
+          {label:'Total revenue', value:m0(dRev), color:'var(--ink)'},
+          {label:'Total cost', value:m0(dCost), color:'var(--amber)'},
+          {label:'Total profit', value:m0(dProfit), color:'var(--green-ink)'}
+        ],
+        chart: dChartRaw.map(d=>({label:d.label, sh:Math.round(d.s/dMax*120), ph:Math.round(d.s*0.37/dMax*120)}))
+      };
+    }
+
+    const methodNames = ['Cash','GCash','Bank Transfer','Other'];
+    const maxProfitP = perProduct.length ? Math.max(1, perProduct[0].profit) : 1;
+
+    return {
+      businessName: st.settings.businessName,
+      initials: st.settings.businessName.split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(''),
+      pageTitle: t[0], pageSub: t[1],
+      themeIcon: st.theme==='light' ? '☾' : '☀',
+      month: (()=>{ const net = grossProfit - monthExp; const ok = net >= 0;
+        return {value: (ok?'':'−') + m0(Math.abs(net)).replace('₱','₱'), bg: ok?'var(--green-soft)':'var(--red-soft)', fg: ok?'var(--green-ink)':'var(--red)',
+          note: ok ? 'net profit after expenses' : 'net loss — expenses exceed profit'}; })(),
+      nav: {dashboard:S==='dashboard'?'1':'0', products:(S==='products'||S==='addProduct'||S==='detail')?'1':'0', sales:S==='sales'?'1':'0', expenses:S==='expenses'?'1':'0', inventory:S==='inventory'?'1':'0', calculator:S==='calculator'?'1':'0', reports:S==='reports'?'1':'0', settings:S==='settings'?'1':'0'},
+      isDashboard:S==='dashboard', isProducts:S==='products', isAddProduct:S==='addProduct', isDetail:S==='detail',
+      isSales:S==='sales', isExpenses:S==='expenses', isInventory:S==='inventory', isCalculator:S==='calculator',
+      isReports:S==='reports', isSettings:S==='settings',
+
+      kpis: [
+        {label:"Today's sales", value:m0(todayRev), note:String(todaySales.length)+' transactions', color:'var(--ink)'},
+        {label:"Today's profit", value:m0(todayProfit), note: totalRev? (todayProfit/Math.max(todayRev,1)*100).toFixed(1)+'% margin':'—', color:'var(--green-ink)'},
+        {label:"Today's expenses", value:m0(todayExp), note:m0(monthExp)+' this month', color:'var(--red)'},
+        {label:'Items sold', value:String(todayUnits), note:'across '+st.products.length+' products', color:'var(--ink)'},
+        {label:'Inventory value', value:m0(invValue), note:'at cost', color:'var(--ink)'}
+      ],
+      chart,
+      topProducts: perProduct.slice(0,4).map(r=>({name:r.p.name, cat:r.p.cat, units:String(r.units), revenue:m0(r.revenue), profit:m0(r.profit)})),
+      recent: [
+        ...todaySales.slice(0,3).map(s=>{
+          const p = this.productById(s.pid);
+          return {sign:'↑', bg:'var(--green-soft)', fg:'var(--green-ink)', title:(p?p.name:'Sale')+' × '+s.qty, meta:s.date+' · '+s.method, amount:'+'+m0(s.rev), sub:'profit '+m0(s.profit)};
+        }),
+        ...st.expenses.slice(0,2).map(e=>({sign:'↓', bg:'var(--red-soft)', fg:'var(--red)', title:e.desc, meta:e.date+' · '+e.cat, amount:'−'+m0(e.amount), sub:'expense'}))
+      ],
+
+      search: st.search,
+      productCount: String(filtered.length),
+      noProducts: filtered.length===0,
+      productCards: filtered.map(p=>{
+        const uc = this.unitCost(p), pm = p.price>0 ? (p.price-uc)/p.price*100 : 0, s = this.statusOf(p);
+        return {id:p.id, name:p.name, cat:p.cat, sku:p.sku, abbr:p.name.split(' ').slice(0,2).map(w=>w[0].toUpperCase()).join(''),
+          price:m(p.price), cost:m(uc), profit:m(p.price-uc), margin:pm.toFixed(1)+'%', marginW:Math.max(0,Math.min(100,Math.round(pm))),
+          stock:p.stock+' '+p.unit, status:s.label, statusBg:s.bg, statusFg:s.fg};
+      }),
+
+      categories:['Beverages','Food','Desserts','Snacks','Others'],
+      units:['pcs','cups','packs','tubs','kg','liters'],
+      form: st.form, calc, target,
+      saveLabel: st.editingId ? 'Save changes' : 'Save product',
+
+      sale, detail,
+      productOptions: st.products.map(p=>({id:p.id, name:p.name, label:p.name+' · '+m(p.price)+' · '+p.stock+' '+p.unit})),
+      methods: methodNames.map(n=>({name:n,
+        bg: st.sale.method===n ? 'var(--green-soft)' : 'var(--card)',
+        fg: st.sale.method===n ? 'var(--green-ink)' : 'var(--ink-2)',
+        border: st.sale.method===n ? 'var(--green)' : 'var(--line)'})),
+      salesRows: allStats.map(s=>{
+        const p = this.productById(s.pid);
+        return {id:s.id, date:s.date, product:p?p.name:'—', qty:String(s.qty), sales:m0(s.rev), cost:m0(s.cost), profit:m0(s.profit), method:s.method};
+      }),
+
+      exp: st.exp,
+      expenseCats:['Transportation','Packaging','Utilities','Marketing','Delivery','Rent','Supplies','Miscellaneous'],
+      expenseKpis:[
+        {label:"Today's expenses", value:m0(todayExp), note:'3 entries logged', color:'var(--red)'},
+        {label:"This month's expenses", value:m0(monthExp), note:'August 2026', color:'var(--red)'},
+        {label:'Largest category', value: catList.length?catList[0].cat:'—', note: catList.length? m0(catList[0].raw)+' spent':'', color:'var(--amber)'}
+      ],
+      expenseBreakdown,
+      expenseRows: st.expenses.map(e=>({id:e.id, date:e.date, desc:e.desc, notes:e.notes, cat:e.cat, amount:m0(e.amount)})),
+
+      lowStock: String(st.settings.lowStock),
+      invKpis:[
+        {label:'Total products', value:String(st.products.length), note:'active SKUs', color:'var(--ink)'},
+        {label:'Total stock', value:String(st.products.reduce((a,p)=>a+p.stock,0)), note:'units on hand', color:'var(--ink)'},
+        {label:'Low / out of stock', value:String(st.products.filter(p=>p.stock<=Number(st.settings.lowStock)).length), note:'needs restocking', color:'var(--amber)'},
+        {label:'Inventory value', value:m0(invValue), note:'at unit cost', color:'var(--green-ink)'}
+      ],
+      invRows: st.products.map(p=>{
+        const s = this.statusOf(p);
+        return {id:p.id, name:p.name, cat:p.cat, stock:String(p.stock), unit:p.unit, cost:m(this.unitCost(p)), value:m0(this.unitCost(p)*p.stock), status:s.label, statusBg:s.bg, statusFg:s.fg};
+      }),
+
+      filter: st.filter,
+      reportKpis:[
+        {label:'Total sales', value:m0(totalRev), note:st.filter.range, color:'var(--ink)'},
+        {label:'Total cost', value:m0(totalCost), note:'cost of goods sold', color:'var(--amber)'},
+        {label:'Total profit', value:m0(grossProfit), note:'before expenses', color:'var(--green-ink)'},
+        {label:'Average margin', value: totalRev? (grossProfit/totalRev*100).toFixed(1)+'%':'—', note:'across all products', color:'var(--green-ink)'},
+        {label:'Units sold', value:String(unitsSold), note:'items', color:'var(--ink)'}
+      ],
+      profitByProduct: perProduct.slice(0,5).map(r=>({name:r.p.name, value:m0(r.profit), w:Math.max(3,Math.round(r.profit/maxProfitP*100))})),
+
+      settings: st.settings,
+      theme: {lightBorder: st.theme==='light'?'var(--green)':'var(--line)', darkBorder: st.theme==='dark'?'var(--green)':'var(--line)'},
+      toast: st.toast, confirm: st.confirm, stockModal: st.stockModal,
+
+      go: e=>{ const s = e.currentTarget.dataset.screen; this.setState({screen:s, editingId: s==='addProduct'? null : this.state.editingId}); window.scrollTo(0,0); },
+      toggleTheme: ()=> this.setState({theme: this.state.theme==='light'?'dark':'light'}),
+      setTheme: e=> this.setState({theme: e.currentTarget.dataset.themeSet}),
+      onSearch: e=> this.setState({search:e.target.value}),
+      onForm: e=> this.setState({form:{...this.state.form, [e.target.name]: e.target.value}}),
+      onSale: e=> this.setState({sale:{...this.state.sale, [e.target.name]: e.target.value}}),
+      onSaleProduct: e=>{
+        const p = this.productById(e.target.value);
+        this.setState({sale:{...this.state.sale, productId:Number(e.target.value), price: p? String(p.price): this.state.sale.price}});
+      },
+      onMethod: e=> this.setState({sale:{...this.state.sale, method:e.currentTarget.dataset.method}}),
+      onExp: e=> this.setState({exp:{...this.state.exp, [e.target.name]: e.target.value}}),
+      onFilter: e=>{ this.setState({filter:{...this.state.filter, [e.target.name]: e.target.value}}); this.toast('Report filtered'); },
+      onMargin: e=> this.setState({target:{margin: Number(e.target.value)}}),
+      onSetting: e=> this.setState({settings:{...this.state.settings, [e.target.name]: e.target.value}}),
+      onDefaultMargin: e=> this.setState({settings:{...this.state.settings, defaultMargin:Number(e.target.value)}, target:{margin:Number(e.target.value)}}),
+      onStockQty: e=> this.setState({stockModal:{...this.state.stockModal, qty:e.target.value}}),
+
+      resetCalc: ()=> this.setState({form:{...this.state.form, name:'', price:'', mat:'', pack:'', labor:'', other:'', qty:'100'}}),
+      applyTarget: ()=>{ this.setState({form:{...this.state.form, price: targetPrice.toFixed(2)}}); this.toast('Selling price set to '+m(targetPrice)); },
+
+      saveProduct: ()=>{
+        const fo = this.state.form;
+        if (!fo.name.trim() || this.num(fo.price)<=0) return this.toast('Add a product name and selling price');
+        if (this.state.editingId){
+          this.setState({products: this.state.products.map(p=> p.id===this.state.editingId ? {...p, name:fo.name, cat:fo.cat, sku:fo.sku, price:this.num(fo.price), mat:this.num(fo.mat), pack:this.num(fo.pack), labor:this.num(fo.labor), other:this.num(fo.other), unit:fo.unit} : p), editingId:null, screen:'products'});
+          this.toast(fo.name+' updated');
+        } else {
+          const id = Date.now();
+          this.setState({products:[{id, name:fo.name, cat:fo.cat, sku:fo.sku||('SKU-'+String(id).slice(-4)), price:this.num(fo.price), mat:this.num(fo.mat), pack:this.num(fo.pack), labor:this.num(fo.labor), other:this.num(fo.other), stock:Math.round(this.num(fo.stock)), unit:fo.unit}, ...this.state.products], screen:'products'});
+          this.toast(fo.name+' added · '+m(profit)+' profit per unit');
+        }
+        window.scrollTo(0,0);
+      },
+      editProduct: e=>{
+        const p = this.productById(e.currentTarget.dataset.id);
+        if (!p) return;
+        this.setState({editingId:p.id, screen:'addProduct', form:{name:p.name, cat:p.cat, sku:p.sku, price:String(p.price), mat:String(p.mat), pack:String(p.pack), labor:String(p.labor), other:String(p.other), stock:String(p.stock), unit:p.unit, qty:this.state.form.qty}});
+        window.scrollTo(0,0);
+      },
+      openProduct: e=>{ this.setState({editingId:Number(e.currentTarget.dataset.id), screen:'detail'}); window.scrollTo(0,0); },
+      askDelete: e=>{
+        const p = this.productById(e.currentTarget.dataset.id);
+        this.setState({confirm:{show:true, kind:'product', id:p.id, title:'Delete '+p.name+'?', body:'This removes the product and its stock from your catalogue. Past sales records are kept.', cta:'Delete product'}});
+      },
+      askDeleteSale: e=> this.setState({confirm:{show:true, kind:'sale', id:Number(e.currentTarget.dataset.id), title:'Void this sale?', body:'The sale will be removed from your history and today\u2019s profit will be recalculated.', cta:'Void sale'}}),
+      askReset: ()=> this.setState({confirm:{show:true, kind:'reset', id:null, title:'Reset sample data?', body:'All products, sales and expenses in this demo will be cleared.', cta:'Reset data'}}),
+      closeConfirm: ()=> this.setState({confirm:{...this.state.confirm, show:false}}),
+      confirmAction: ()=>{
+        const c = this.state.confirm;
+        if (c.kind==='product') this.setState({products:this.state.products.filter(p=>p.id!==c.id)}), this.toast('Product deleted');
+        if (c.kind==='sale') this.setState({sales:this.state.sales.filter(s=>s.id!==c.id)}), this.toast('Sale voided');
+        if (c.kind==='reset') this.setState({products:[], sales:[], expenses:[]}), this.toast('Sample data cleared');
+        this.setState({confirm:{...c, show:false}});
+      },
+      deleteExpense: e=>{
+        const id = Number(e.currentTarget.dataset.id);
+        this.setState({expenses:this.state.expenses.filter(x=>x.id!==id)});
+        this.toast('Expense deleted');
+      },
+      addExpense: ()=>{
+        const ex = this.state.exp;
+        if (!ex.desc.trim() || this.num(ex.amount)<=0) return this.toast('Add a description and amount');
+        this.setState({expenses:[{id:Date.now(), desc:ex.desc, cat:ex.cat, amount:this.num(ex.amount), date:'Aug 12', notes:ex.notes}, ...this.state.expenses], exp:{...ex, desc:'', amount:'', notes:''}});
+        this.toast('Expense recorded · '+m(this.num(ex.amount)));
+      },
+      recordSale: ()=>{
+        if (!sp) return this.toast('Add a product first');
+        if (sQty<=0) return this.toast('Enter a quantity');
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'});
+        this.setState({
+          sales:[{id:Date.now(), pid:sp.id, qty:sQty, price:sPrice, method:this.state.sale.method, date:'Today, '+time, day:0}, ...this.state.sales],
+          products:this.state.products.map(p=>p.id===sp.id?{...p, stock:Math.max(0,p.stock-sQty)}:p),
+          sale:{...this.state.sale, qty:'1'}
+        });
+        this.toast('Sale recorded · '+m(sProfit)+' profit');
+      },
+      openAddStock: e=>{
+        const p = this.productById(e.currentTarget.dataset.id);
+        this.setState({stockModal:{show:true, id:p.id, label:p.name+' — currently '+p.stock+' '+p.unit, qty:'50'}});
+      },
+      closeStock: ()=> this.setState({stockModal:{...this.state.stockModal, show:false}}),
+      saveStock: ()=>{
+        const sm = this.state.stockModal, add = Math.round(this.num(sm.qty));
+        this.setState({products:this.state.products.map(p=>p.id===sm.id?{...p, stock:p.stock+add}:p), stockModal:{...sm, show:false}});
+        this.toast(add+' units added to stock');
+      },
+      exportReport: e=>{
+        const k = e.currentTarget.dataset.kind;
+        this.toast(k==='print' ? 'Preparing print view…' : k+' report exported');
+      },
+      notImplemented: ()=> this.toast('Saved')
+    };
+  }
+}
+</script>
+</body>
+</html>
