@@ -50,22 +50,60 @@ class InventoryScreen extends StatelessWidget {
                   child: Text('No products yet.', style: TextStyle(color: colors.muted, fontSize: 13)),
                 )
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 700),
-                    child: Column(
-                      children: [
-                        _Header(colors: colors),
-                        for (final p in state.products) _Row(product: p, symbol: symbol, threshold: threshold),
-                      ],
-                    ),
-                  ),
-                ),
+                _ScrollableTable(colors: colors, symbol: symbol, threshold: threshold, products: state.products),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Wraps the table in a horizontal scroller with an always-visible thumb —
+/// the table's columns need ~700px, wider than most phones, so the thumb
+/// makes the swipe-to-scroll affordance obvious instead of the content just
+/// looking cut off. Needs its own [ScrollController] (disposed here) since
+/// [Scrollbar] can't auto-attach to a scrollable that isn't the page's
+/// primary one.
+class _ScrollableTable extends StatefulWidget {
+  final AppColors colors;
+  final String symbol;
+  final int threshold;
+  final List<Product> products;
+  const _ScrollableTable({required this.colors, required this.symbol, required this.threshold, required this.products});
+
+  @override
+  State<_ScrollableTable> createState() => _ScrollableTableState();
+}
+
+class _ScrollableTableState extends State<_ScrollableTable> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 700),
+          child: Column(
+            children: [
+              _Header(colors: widget.colors),
+              for (final p in widget.products) _Row(product: p, symbol: widget.symbol, threshold: widget.threshold),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

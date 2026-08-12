@@ -195,53 +195,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionTitle(title: 'Data'),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => state.showToast('Data backed up locally'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.ink2,
-                      side: BorderSide(color: colors.line),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
-                    ),
-                    child: const Text('Back up data'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () => state.showToast('Restore coming soon'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.ink2,
-                      side: BorderSide(color: colors.line),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
-                    ),
-                    child: const Text('Restore'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () => state.confirm(
-                      title: 'Reset sample data?',
-                      body: 'This replaces all products, sales and expenses with the original sample dataset. This cannot be undone.',
-                      onConfirm: () => state.resetSampleData(),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.red,
-                      side: BorderSide(color: colors.line),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
-                    ),
-                    child: const Text('Reset sample data'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        SectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               const SectionTitle(title: 'Account'),
               const SizedBox(height: 14),
               Text(

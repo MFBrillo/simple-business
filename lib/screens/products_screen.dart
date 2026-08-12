@@ -27,51 +27,53 @@ class ProductsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: 280,
-                    child: TextField(
-                      onChanged: (v) => context.read<AppState>().setSearch(v),
-                      decoration: InputDecoration(
-                        hintText: 'Search products…',
-                        prefixIcon: const Icon(Icons.search, size: 18),
-                        isDense: true,
-                        filled: true,
-                        fillColor: colors.bg,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.field),
-                          borderSide: BorderSide(color: colors.line),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth <= AppBreakpoints.compact;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        onChanged: (v) => context.read<AppState>().setSearch(v),
+                        decoration: InputDecoration(
+                          hintText: compact ? 'Search…' : 'Search products…',
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          isDense: true,
+                          filled: true,
+                          fillColor: colors.bg,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.field),
+                            borderSide: BorderSide(color: colors.line),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Text('${filtered.length} products', style: TextStyle(color: colors.muted, fontSize: 12.5)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => context.read<AppState>().startAddProduct(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Product'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.green,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
-              ),
-            ),
-          ],
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      onPressed: () => context.read<AppState>().startAddProduct(),
+                      icon: const Icon(Icons.add, size: 17),
+                      label: Text(compact ? 'Add' : 'Add Product'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 15, vertical: compact ? 10 : 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('${filtered.length} products', style: TextStyle(color: colors.muted, fontSize: 12.5)),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 18),
         if (filtered.isEmpty)

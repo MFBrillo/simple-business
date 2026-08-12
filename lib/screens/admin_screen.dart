@@ -136,13 +136,13 @@ class _UserRow extends StatelessWidget {
                   'Joined ${DateFormat('MMM d, yyyy').format(user.createdAt)}',
                   style: TextStyle(fontSize: 11, color: colors.muted),
                 ),
+                const SizedBox(height: 6),
+                StatusPill(label: user.status, tone: user.isActive ? PillTone.green : PillTone.amber),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          StatusPill(label: user.status, tone: user.isActive ? PillTone.green : PillTone.amber),
-          const SizedBox(width: 10),
-          OutlinedButton(
+          ElevatedButton(
             onPressed: () {
               if (user.isActive) {
                 state.confirm(
@@ -155,13 +155,17 @@ class _UserRow extends StatelessWidget {
                 state.setUserStatus(user.id, 'Active');
               }
             },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: user.isActive ? colors.red : colors.greenInk,
-              side: BorderSide(color: colors.line),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: user.isActive ? colors.red : colors.green,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
             ),
-            child: Text(user.isActive ? 'Deactivate' : 'Activate', style: const TextStyle(fontSize: 12.5)),
+            child: Text(
+              user.isActive ? 'Deactivate' : 'Activate',
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

@@ -133,7 +133,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     if (!await _loadOwnUserRow()) {
-      accountLockedMessage = "Your account isn't active yet. Contact your administrator to get access.";
+      // Distinguish "we checked and you're genuinely not active" from "the
+      // check itself failed" (bad RLS policy, missing column, network
+      // error…) — those used to both show the same generic copy, which
+      // hides real bugs behind a message that says to contact an admin.
+      accountLockedMessage = _lastAccountCheckError != null
+          ? "Couldn't verify your account: $_lastAccountCheckError"
+          : "Your account isn't active yet. Contact your administrator to get access.";
       await supabase.auth.signOut(); // re-enters this method with session == null, which notifies
       return;
     }
@@ -143,19 +149,33 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set by [_loadOwnUserRow] when it fails via an actual error (as opposed
+  /// to a clean "row exists, status isn't Active") — surfaced verbatim in
+  /// [accountLockedMessage] so a real bug doesn't masquerade as "not active".
+  String? _lastAccountCheckError;
+
   /// Checks the caller's `users.status` and `is_admin` columns, setting
   /// [isAdmin] as a side effect. New sign-ups start at status 'Inactive'
   /// (an approval gate, not just a lock) — an admin flips a row to 'Active'
   /// via the Admin screen (or the Supabase dashboard) to grant access.
   /// Fails CLOSED: a missing row or any read error blocks access, matching
   /// the DB-level RLS check.
+  ///
+  /// Filters explicitly by the caller's own id rather than relying on RLS
+  /// to narrow it to one row: once an account is `is_admin`, the SELECT
+  /// policy widens to every row in `users`, so an unfiltered query here
+  /// would return more than one row and `.maybeSingle()` would throw.
   Future<bool> _loadOwnUserRow() async {
+    _lastAccountCheckError = null;
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return false;
     try {
-      final row = await supabase.from('users').select('status, is_admin').maybeSingle();
+      final row = await supabase.from('users').select('status, is_admin').eq('id', uid).maybeSingle();
       isAdmin = row?['is_admin'] == true;
       return row != null && row['status'] == 'Active';
     } catch (e) {
       isAdmin = false;
+      _lastAccountCheckError = _friendlyError(e);
       return false;
     }
   }
