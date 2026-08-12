@@ -16,7 +16,9 @@
 /// repository secrets `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`.
 class SupabaseConfig {
   static const url = String.fromEnvironment('SUPABASE_URL');
-  static const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  static const publishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+  );
 
   static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
 }
