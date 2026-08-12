@@ -24,7 +24,10 @@ import 'widgets/shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: SupabaseConfig.url, publishableKey: SupabaseConfig.publishableKey);
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.publishableKey,
+  );
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState(),
@@ -46,7 +49,9 @@ class ProfitPilotApp extends StatelessWidget {
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: SupabaseConfig.isConfigured ? const _AppRoot() : const _MissingConfigScreen(),
+      home: SupabaseConfig.isConfigured
+          ? const _AppRoot()
+          : const _MissingConfigScreen(),
     );
   }
 }
@@ -72,12 +77,23 @@ class _MissingConfigScreen extends StatelessWidget {
               children: [
                 Icon(Icons.cloud_off_rounded, size: 32, color: colors.muted),
                 const SizedBox(height: 16),
-                Text('Supabase isn\'t configured yet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: colors.ink)),
+                Text(
+                  'Supabase isn\'t configured yet',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: colors.ink,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Fill in your project URL and anon key in lib/supabase/supabase_config.dart, then restart the app.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: colors.muted, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colors.muted,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -107,11 +123,7 @@ class _AppRoot extends StatelessWidget {
     }
 
     return ConfirmDialogHost(
-      child: AppToastOverlay(
-        child: Shell(
-          child: const _ActiveScreen(),
-        ),
-      ),
+      child: AppToastOverlay(child: Shell(child: const _ActiveScreen())),
     );
   }
 }
@@ -133,12 +145,16 @@ class _ActiveScreen extends StatelessWidget {
     return switch (screen) {
       AppScreen.dashboard => const DashboardScreen(key: ValueKey('dashboard')),
       AppScreen.products => const ProductsScreen(key: ValueKey('products')),
-      AppScreen.addProduct => ProductFormScreen(key: ValueKey('addProduct-$editingId')),
+      AppScreen.addProduct => ProductFormScreen(
+        key: ValueKey('addProduct-$editingId'),
+      ),
       AppScreen.detail => const ProductDetailScreen(key: ValueKey('detail')),
       AppScreen.sales => const SalesScreen(key: ValueKey('sales')),
       AppScreen.expenses => const ExpensesScreen(key: ValueKey('expenses')),
       AppScreen.inventory => const InventoryScreen(key: ValueKey('inventory')),
-      AppScreen.calculator => const CalculatorScreen(key: ValueKey('calculator')),
+      AppScreen.calculator => const CalculatorScreen(
+        key: ValueKey('calculator'),
+      ),
       AppScreen.reports => const ReportsScreen(key: ValueKey('reports')),
       AppScreen.settings => const SettingsScreen(key: ValueKey('settings')),
     };
