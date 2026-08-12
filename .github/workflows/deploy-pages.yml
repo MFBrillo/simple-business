@@ -30,7 +30,14 @@ jobs:
       # Repo is served at https://<user>.github.io/simple-business/, so the
       # app's base href has to match the repo name — update this if the
       # repo is ever renamed.
-      - run: flutter build web --release --base-href /simple-business/
+      #
+      # SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY come from repo secrets
+      # (Settings → Secrets and variables → Actions) rather than being
+      # hardcoded in source — see lib/supabase/supabase_config.dart.
+      - run: |
+          flutter build web --release --base-href /simple-business/ \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,17 +1,22 @@
-/// Fill these in from your Supabase project (Project Settings → API →
-/// "Publishable key", formerly called the anon key).
+/// Supabase project URL + publishable key (formerly called the anon key),
+/// supplied at **compile time** via `--dart-define` — never hardcoded here,
+/// so they don't sit in plain source in git history.
 ///
 /// This key is safe to ship in a client app — access is enforced by the
-/// Row Level Security policies on each table (see the schema in
-/// `supabase/schema.sql`), not by keeping this key secret. Still, if this
-/// repo is public, consider moving these to `--dart-define` build args so
-/// you're not pointing strangers at your project by default.
+/// Row Level Security policies on each table (see `supabase/schema.sql`),
+/// not by keeping this key secret. Still, keeping it out of source avoids
+/// looking like a leaked secret to anyone scanning the repo, and means
+/// rotating it doesn't require a code change.
+///
+/// Local dev: `flutter run --dart-define-from-file=dart_defines/supabase.local.json`
+/// (copy `dart_defines/supabase.example.json` to that path and fill it in —
+/// `supabase.local.json` is gitignored).
+///
+/// CI/GitHub Pages: the `deploy-pages.yml` workflow passes these from
+/// repository secrets `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`.
 class SupabaseConfig {
-  static const url = 'https://mllmkfgqyxkxzwcyuphh.supabase.co';
-  static const publishableKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sbG1rZmdxeXhreHp3Y3l1cGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NzQzMDIsImV4cCI6MjA3MzA1MDMwMn0.151HtAvJeS9Xuv6al1aaR2-F-k8IZwrWv5baFmWBMtk';
+  static const url = String.fromEnvironment('SUPABASE_URL');
+  static const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
 
-  static bool get isConfigured =>
-      !url.contains('YOUR_PROJECT_REF') &&
-      !publishableKey.contains('YOUR_PUBLISHABLE_KEY');
+  static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
 }
