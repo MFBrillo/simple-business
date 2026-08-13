@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/product_material.dart';
 import '../state/app_screen.dart';
@@ -56,6 +57,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late String unit;
   int? editingId;
   bool saving = false;
+
+  /// Guards the two network round-trips in [_saveIngredientBatch] (the
+  /// dedupe check, then the actual insert inside the confirm dialog's
+  /// onConfirm). Left false while the confirm dialog itself is open — there
+  /// is no cancel callback to reset it, so it can only wrap calls that are
+  /// guaranteed to resolve on their own.
+  bool batchBusy = false;
 
   @override
   void initState() {
@@ -179,6 +187,100 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
+  static String _isoDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Entry point for "Save batch as expense": validates the ingredient
+  /// rows, guards the cases that can't produce a sane [Expense.batchRef],
+  /// runs the best-effort duplicate check, then asks for confirmation via
+  /// the app's existing confirm-dialog mechanism. Does not write anything
+  /// itself — see [_commitIngredientBatch].
+  Future<void> _saveIngredientBatch() async {
+    if (batchBusy) return;
+    final state = context.read<AppState>();
+    final validRows = [
+      for (final row in materialRows)
+        if (row.name.text.trim().isNotEmpty && row.subtotal != 0) row,
+    ];
+    if (validRows.isEmpty) {
+      state.showToast('No ingredient rows to save — check names and amounts');
+      return;
+    }
+    if (editingId == null) {
+      state.showToast('Save the product first, then save the batch as an expense');
+      return;
+    }
+
+    final today = DateTime.now();
+    final todayIso = _isoDate(today);
+    final batchRef = '$editingId:$todayIso';
+    final total = validRows.fold(0.0, (sum, r) => sum + r.subtotal);
+    final productName = name.text.trim();
+    final symbol = state.settings.currencySymbol;
+    final rowWord = validRows.length == 1 ? 'row' : 'rows';
+
+    setState(() => batchBusy = true);
+    final alreadySaved = await state.batchRefExists(batchRef);
+    if (!mounted) return;
+    setState(() => batchBusy = false);
+
+    state.confirm(
+      title: alreadySaved ? 'Update today\'s batch?' : 'Save batch as expense?',
+      body: alreadySaved
+          ? 'This product\'s ingredient batch was already saved today. Updating replaces those '
+              'entries with the current ${validRows.length} ingredient $rowWord, totaling '
+              '${formatMoney(total, symbol, decimals: 2)}, dated $todayIso.'
+          : 'This adds ${validRows.length} ingredient $rowWord as expenses, totaling '
+              '${formatMoney(total, symbol, decimals: 2)}, dated $todayIso.',
+      confirmLabel: alreadySaved ? 'Update batch' : 'Save expense',
+      onConfirm: () => _commitIngredientBatch(
+        rows: validRows,
+        batchRef: batchRef,
+        date: today,
+        productName: productName,
+        replaceExisting: alreadySaved,
+      ),
+    );
+  }
+
+  /// Writes one expense row per ingredient, called from the confirm dialog
+  /// opened by [_saveIngredientBatch]. [replaceExisting] picks a plain
+  /// insert (first time saving this batch today — `AppState.saveIngredientBatchExpenses`)
+  /// vs. replacing the rows already saved for [batchRef] today
+  /// (`AppState.replaceIngredientBatchExpenses`) so re-saving updates the
+  /// batch instead of piling up duplicate rows.
+  Future<void> _commitIngredientBatch({
+    required List<_MaterialRow> rows,
+    required String batchRef,
+    required DateTime date,
+    required String productName,
+    required bool replaceExisting,
+  }) async {
+    final state = context.read<AppState>();
+    setState(() => batchBusy = true);
+    final batch = [
+      for (final row in rows)
+        Expense(
+          id: 0, // DB-assigned on insert; placeholder for the write payload.
+          description: row.name.text.trim(),
+          category: 'Ingredients',
+          amount: row.subtotal,
+          date: date,
+          notes: 'Batch: $productName',
+          batchRef: batchRef,
+        ),
+    ];
+    final saved = replaceExisting
+        ? await state.replaceIngredientBatchExpenses(batchRef: batchRef, batch: batch)
+        : await state.saveIngredientBatchExpenses(batch);
+    if (!mounted) return;
+    setState(() => batchBusy = false);
+    if (saved != null) {
+      final verb = replaceExisting ? 'Updated batch to' : 'Saved';
+      state.showToast('$verb ${formatMoney(saved, state.settings.currencySymbol, decimals: 2)} as ${batch.length} ingredient expense${batch.length == 1 ? '' : 's'}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isNew = editingId == null;
@@ -204,6 +306,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           materialRows: materialRows,
           onAddMaterialRow: _addMaterialRow,
           onRemoveMaterialRow: _removeMaterialRow,
+          onSaveIngredientBatch: _saveIngredientBatch,
+          savingBatch: batchBusy,
           category: category,
           unit: unit,
           onCategoryChanged: (v) => setState(() => category = v),
@@ -236,6 +340,8 @@ class _FormCard extends StatelessWidget {
   final List<_MaterialRow> materialRows;
   final VoidCallback onAddMaterialRow;
   final ValueChanged<_MaterialRow> onRemoveMaterialRow;
+  final VoidCallback onSaveIngredientBatch;
+  final bool savingBatch;
   final String category, unit;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<String> onUnitChanged;
@@ -256,6 +362,8 @@ class _FormCard extends StatelessWidget {
     required this.materialRows,
     required this.onAddMaterialRow,
     required this.onRemoveMaterialRow,
+    required this.onSaveIngredientBatch,
+    required this.savingBatch,
     required this.category,
     required this.unit,
     required this.onCategoryChanged,
@@ -320,7 +428,12 @@ class _FormCard extends StatelessWidget {
             const SizedBox(height: 4),
             _FieldTile(width: 170, label: 'Finished quantity', child: _TextInput(controller: batchYield, isNumber: true, hint: 'e.g. 30')),
             const SizedBox(height: 12),
-            _IngredientsSummary(materialRows: materialRows, batchYield: batchYield),
+            _IngredientsSummary(
+              materialRows: materialRows,
+              batchYield: batchYield,
+              onSaveBatch: onSaveIngredientBatch,
+              saving: savingBatch,
+            ),
           ],
           const SizedBox(height: 18),
           Divider(color: colors.line),
@@ -534,7 +647,14 @@ class _MaterialRowFields extends StatelessWidget {
 class _IngredientsSummary extends StatelessWidget {
   final List<_MaterialRow> materialRows;
   final TextEditingController batchYield;
-  const _IngredientsSummary({required this.materialRows, required this.batchYield});
+  final VoidCallback onSaveBatch;
+  final bool saving;
+  const _IngredientsSummary({
+    required this.materialRows,
+    required this.batchYield,
+    required this.onSaveBatch,
+    required this.saving,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -550,6 +670,36 @@ class _IngredientsSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SummaryLine('Total material cost', formatMoney(total, '₱', decimals: 2), colors),
+          const SizedBox(height: 8),
+          // Own row (not squeezed beside the total line) so the button never
+          // fights the label/value text for width on narrow layouts —
+          // _SummaryLine's inner Row has no flex/ellipsis of its own to
+          // shrink, so sharing a Row with it here previously overflowed.
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: materialRows.isEmpty || saving ? null : onSaveBatch,
+              icon: saving
+                  ? SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: colors.red),
+                    )
+                  : const Icon(Icons.receipt_long, size: 15),
+              label: Text(
+                saving ? 'Saving…' : 'Save batch as expense',
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.red,
+                side: BorderSide(color: colors.red),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                visualDensity: VisualDensity.compact,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           _SummaryLine(
             'Material cost / unit',
             yieldQty > 0 ? formatMoney(perUnit, '₱', decimals: 2) : 'Enter finished quantity',

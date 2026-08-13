@@ -26,6 +26,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   DateTime date = DateTime.now();
   bool saving = false;
 
+  /// Non-null while the "Add expense" form is instead editing this existing
+  /// expense (see [_startEdit]) — kept as the full [Expense], not just its
+  /// id, so [_save] can carry over fields the form doesn't expose (like
+  /// [Expense.batchRef]) instead of silently wiping them on update.
+  Expense? editingExpense;
+
   @override
   void dispose() {
     desc.dispose();
@@ -35,7 +41,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     super.dispose();
   }
 
-  Future<void> _add(AppState state) async {
+  void _startEdit(Expense e) {
+    setState(() {
+      editingExpense = e;
+      desc.text = e.description;
+      category = e.category;
+      amount.text = e.amount.toStringAsFixed(2);
+      quantity.text = e.quantity?.toString() ?? '';
+      notes.text = e.notes;
+      date = e.date;
+    });
+  }
+
+  void _cancelEdit() => _resetForm();
+
+  void _resetForm() {
+    setState(() {
+      editingExpense = null;
+      desc.clear();
+      amount.clear();
+      notes.clear();
+      quantity.clear();
+      date = DateTime.now();
+    });
+  }
+
+  Future<void> _save(AppState state) async {
     if (saving) return;
     final d = desc.text.trim();
     final a = double.tryParse(amount.text) ?? 0;
@@ -44,26 +75,25 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       return;
     }
     final q = int.tryParse(quantity.text);
+    final isNew = editingExpense == null;
     setState(() => saving = true);
-    // id is DB-assigned; 0 is just a placeholder for the insert payload.
-    final ok = await state.addExpense(Expense(
-      id: 0,
+    // id is DB-assigned on insert; 0 is just a placeholder for that payload.
+    final expense = Expense(
+      id: isNew ? 0 : editingExpense!.id,
       description: d,
       category: category,
       amount: a,
       date: date,
       notes: notes.text.trim(),
       quantity: q != null && q > 0 ? q : null,
-    ));
+      batchRef: isNew ? null : editingExpense!.batchRef,
+    );
+    final ok = isNew ? await state.addExpense(expense) : await state.updateExpense(expense);
     if (!mounted) return;
     setState(() => saving = false);
     if (ok) {
-      desc.clear();
-      amount.clear();
-      notes.clear();
-      quantity.clear();
-      setState(() => date = DateTime.now());
-      state.showToast('Expense added');
+      _resetForm();
+      state.showToast(isNew ? 'Expense added' : 'Expense updated');
     }
   }
 
@@ -78,6 +108,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
     }
     final sortedCategories = byCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+
+    final expensesByDay = <DateTime, List<Expense>>{};
+    for (final e in state.expenses) {
+      final day = DateTime(e.date.year, e.date.month, e.date.day);
+      expensesByDay.putIfAbsent(day, () => []).add(e);
+    }
+    final expenseDays = expensesByDay.keys.toList()..sort((a, b) => b.compareTo(a));
+    final allTimeExpenseTotal = state.expenses.fold(0.0, (sum, e) => sum + e.amount);
     final largest = sortedCategories.isEmpty ? null : sortedCategories.first;
     final categoryColors = [colors.amber, colors.red, colors.bar];
 
@@ -99,7 +137,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionTitle(title: 'Add expense'),
+              SectionTitle(title: editingExpense == null ? 'Add expense' : 'Edit expense'),
               const SizedBox(height: 16),
               _Field(label: 'Description', child: _TextInput(controller: desc, hint: 'e.g. Tricycle fare')),
               const SizedBox(height: 13),
@@ -161,20 +199,41 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 style: TextStyle(fontSize: 11.5, color: colors.muted, height: 1.4),
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: saving ? null : () => _add(state),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.red,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: colors.hover,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: saving ? null : () => _save(state),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.red,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: colors.hover,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                      ),
+                      child: Text(
+                        saving
+                            ? (editingExpense == null ? 'Adding…' : 'Saving…')
+                            : (editingExpense == null ? 'Add expense' : 'Save changes'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   ),
-                  child: Text(saving ? 'Adding…' : 'Add expense', style: const TextStyle(fontWeight: FontWeight.w700)),
-                ),
+                  if (editingExpense != null) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: saving ? null : _cancelEdit,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.ink2,
+                        side: BorderSide(color: colors.line),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -250,7 +309,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionTitle(title: 'Expense log'),
+              SectionTitle(
+                title: 'Expense log',
+                trailing: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('All-time total', style: TextStyle(fontSize: 11, color: colors.muted)),
+                    Text(
+                      formatMoney(allTimeExpenseTotal, symbol),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: colors.red),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 14),
               if (state.expenses.isEmpty)
                 Text('No expenses logged yet.', style: TextStyle(color: colors.muted, fontSize: 13))
@@ -260,7 +331,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 560),
                     child: Column(
-                      children: [for (final e in state.expenses) _ExpenseRow(expense: e, symbol: symbol)],
+                      children: [
+                        for (final day in expenseDays)
+                          _DayGroup(day: day, expenses: expensesByDay[day]!, symbol: symbol, onEdit: _startEdit),
+                      ],
                     ),
                   ),
                 ),
@@ -354,10 +428,51 @@ class _TextInput extends StatelessWidget {
   }
 }
 
+/// One day's worth of expenses under a "date — day total" header, so the
+/// log reads the way a receipt does: itemized, with a subtotal per day.
+class _DayGroup extends StatelessWidget {
+  final DateTime day;
+  final List<Expense> expenses;
+  final String symbol;
+  final ValueChanged<Expense> onEdit;
+  const _DayGroup({required this.day, required this.expenses, required this.symbol, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final total = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 14, bottom: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(color: colors.hover, borderRadius: BorderRadius.circular(AppRadius.small)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: colors.ink),
+              ),
+              Text(
+                'Day total: ${formatMoney(total, symbol, decimals: 2)}',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: colors.red),
+              ),
+            ],
+          ),
+        ),
+        for (final e in expenses) _ExpenseRow(expense: e, symbol: symbol, onEdit: onEdit),
+      ],
+    );
+  }
+}
+
 class _ExpenseRow extends StatelessWidget {
   final Expense expense;
   final String symbol;
-  const _ExpenseRow({required this.expense, required this.symbol});
+  final ValueChanged<Expense> onEdit;
+  const _ExpenseRow({required this.expense, required this.symbol, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +518,15 @@ class _ExpenseRow extends StatelessWidget {
           SizedBox(width: 130, child: StatusPill(label: expense.category, tone: PillTone.red)),
           SizedBox(
             width: 90,
-            child: Text(formatMoney(expense.amount, symbol), textAlign: TextAlign.right, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.red)),
+            child: Text(formatMoney(expense.amount, symbol, decimals: 2), textAlign: TextAlign.right, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.red)),
+          ),
+          SizedBox(
+            width: 44,
+            child: IconButton(
+              onPressed: () => onEdit(expense),
+              icon: Icon(Icons.edit_outlined, size: 18, color: colors.muted),
+              tooltip: 'Edit expense',
+            ),
           ),
           SizedBox(
             width: 44,
@@ -416,6 +539,7 @@ class _ExpenseRow extends StatelessWidget {
                 },
               ),
               icon: Icon(Icons.delete_outline, size: 18, color: colors.muted),
+              tooltip: 'Delete expense',
             ),
           ),
         ],

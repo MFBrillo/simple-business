@@ -28,6 +28,14 @@ class Product {
   /// meaningful when [materials] is non-empty; defaults to 1 otherwise.
   final int batchYield;
 
+  /// Soft-delete flag — set by [AppState.deleteProduct] when a real delete
+  /// is rejected because sales reference this product (`sales_product_id_fkey`
+  /// is `on delete restrict`; see `supabase/007_products_archived.sql`).
+  /// Archived products are hidden from the catalog and the "record a sale"
+  /// picker but stay resolvable by id, so past sales/reports still show
+  /// their name and cost correctly.
+  final bool archived;
+
   const Product({
     required this.id,
     required this.name,
@@ -42,6 +50,7 @@ class Product {
     required this.unit,
     this.materials = const [],
     this.batchYield = 1,
+    this.archived = false,
   });
 
   /// Sum of `unitCost × quantity` across [materials].
@@ -77,6 +86,7 @@ class Product {
     String? unit,
     List<ProductMaterial>? materials,
     int? batchYield,
+    bool? archived,
   }) {
     return Product(
       id: id ?? this.id,
@@ -92,11 +102,15 @@ class Product {
       unit: unit ?? this.unit,
       materials: materials ?? this.materials,
       batchYield: batchYield ?? this.batchYield,
+      archived: archived ?? this.archived,
     );
   }
 
   /// Write payload for Supabase — `id` is DB-assigned (identity column) and
-  /// never sent on insert or update.
+  /// never sent on insert or update. [archived] is deliberately left out
+  /// too: it's not a Products-form field, so an ordinary save should never
+  /// touch it either way — only `AppState.deleteProduct`'s archive fallback
+  /// writes it, via a plain update map.
   Map<String, dynamic> toJson() => {
         'name': name,
         'category': category,
@@ -128,6 +142,7 @@ class Product {
             .map((m) => ProductMaterial.fromJson(m as Map<String, dynamic>))
             .toList(),
         batchYield: json['batch_yield'] as int? ?? 1,
+        archived: json['archived'] as bool? ?? false,
       );
 }
 

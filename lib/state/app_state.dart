@@ -366,12 +366,40 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Deletes a product, or — if it already has sales (`sales_product_id_fkey`
+  /// is `on delete restrict`; Postgres rejects the delete with SQLSTATE
+  /// `23503`, foreign_key_violation) — archives it instead, via
+  /// [_archiveProduct]. Either way the product disappears from the catalog;
+  /// only the archive path keeps its row (and past sales' name/cost lookup)
+  /// intact.
   Future<void> deleteProduct(int id) async {
     try {
       await supabase.from('products').delete().eq('id', id);
       products.removeWhere((p) => p.id == id);
       notifyListeners();
       showToast('Product deleted');
+    } on PostgrestException catch (e) {
+      if (e.code == '23503') {
+        await _archiveProduct(id);
+      } else {
+        showToast('Could not delete product: ${_friendlyError(e)}');
+      }
+    } catch (e) {
+      showToast('Could not delete product: ${_friendlyError(e)}');
+    }
+  }
+
+  /// Fallback for [deleteProduct]: flips `archived` to true instead of
+  /// removing the row, so it drops out of the catalog / "record a sale"
+  /// picker while past sales keep resolving its name and unit cost — see
+  /// `supabase/007_products_archived.sql`.
+  Future<void> _archiveProduct(int id) async {
+    try {
+      final row = await supabase.from('products').update({'archived': true}).eq('id', id).select().single();
+      final i = products.indexWhere((p) => p.id == id);
+      if (i != -1) products[i] = Product.fromJson(row);
+      notifyListeners();
+      showToast('This product has past sales, so it was archived instead — it\'s off the catalog, and its sales history is unaffected.');
     } catch (e) {
       showToast('Could not delete product: ${_friendlyError(e)}');
     }
@@ -455,6 +483,23 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Updates an existing expense in place. Unlike [addExpense], this never
+  /// touches supplies — re-saving edits (e.g. fixing a typo) shouldn't
+  /// silently restock something a second time.
+  Future<bool> updateExpense(Expense expense) async {
+    try {
+      final row = await supabase.from('expenses').update(expense.toJson()).eq('id', expense.id).select().single();
+      final updated = Expense.fromJson(row);
+      final i = expenses.indexWhere((e) => e.id == expense.id);
+      if (i != -1) expenses[i] = updated;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      showToast('Could not update expense: ${_friendlyError(e)}');
+      return false;
+    }
+  }
+
   /// Adds [addQuantity] to the running stock of the supply named [name]
   /// (case-insensitive match against existing supplies), creating it if
   /// this is the first time it's been restocked.
@@ -473,6 +518,70 @@ class AppState extends ChangeNotifier {
       supplies[i] = Supply.fromJson(row);
     }
     supplies.sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  /// Best-effort duplicate check for the Products form's "Save batch as
+  /// expense" button — true if any expense already carries [batchRef]. A
+  /// failed check is treated as "no duplicate" so it never blocks a save;
+  /// the button's own confirm dialog is the actual safety net either way.
+  Future<bool> batchRefExists(String batchRef) async {
+    try {
+      final rows = await supabase.from('expenses').select('id').eq('batch_ref', batchRef).limit(1);
+      return rows.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Inserts [batch] as a single multi-row insert — all rows land or none
+  /// do — for the Products form's "Save batch as expense" button (one
+  /// expense row per ingredient). Returns the total amount saved, or null
+  /// on failure (error already surfaced via [showToast]).
+  Future<double?> saveIngredientBatchExpenses(List<Expense> batch) async {
+    try {
+      final rows = await supabase.from('expenses').insert([for (final e in batch) e.toJson()]).select();
+      final saved = rows.map((r) => Expense.fromJson(r)).toList();
+      expenses.insertAll(0, saved);
+      notifyListeners();
+      return saved.fold<double>(0.0, (sum, e) => sum + e.amount);
+    } catch (e) {
+      showToast('Could not save batch: ${_friendlyError(e)}');
+      return null;
+    }
+  }
+
+  /// Re-saving "Save batch as expense" for a batch already logged today —
+  /// replaces every row tagged with [batchRef] with the current [batch]
+  /// instead of piling up a second set of duplicate rows. Inserts the new
+  /// rows first, then deletes the old ones by id: if the insert fails
+  /// nothing is touched; if the insert succeeds but the cleanup delete
+  /// fails, the old rows are left behind (surfaced via [showToast]) rather
+  /// than silently losing data. Returns the total amount saved, or null on
+  /// a failed insert.
+  Future<double?> replaceIngredientBatchExpenses({
+    required String batchRef,
+    required List<Expense> batch,
+  }) async {
+    final oldIds = [for (final e in expenses) if (e.batchRef == batchRef) e.id];
+    try {
+      final rows = await supabase.from('expenses').insert([for (final e in batch) e.toJson()]).select();
+      final saved = rows.map((r) => Expense.fromJson(r)).toList();
+      expenses.insertAll(0, saved);
+      notifyListeners();
+      if (oldIds.isNotEmpty) {
+        try {
+          await supabase.from('expenses').delete().inFilter('id', oldIds);
+          expenses.removeWhere((e) => oldIds.contains(e.id));
+          notifyListeners();
+        } catch (e) {
+          showToast('Batch updated, but could not clear the previous entries: ${_friendlyError(e)}');
+        }
+      }
+      return saved.fold<double>(0.0, (sum, e) => sum + e.amount);
+    } catch (e) {
+      showToast('Could not update batch: ${_friendlyError(e)}');
+      return null;
+    }
   }
 
   Future<void> deleteExpense(int id) async {
@@ -568,8 +677,16 @@ class AppState extends ChangeNotifier {
   double _saleProfit(Sale s) => s.revenue - _saleCost(s);
 
   double get todaySalesTotal => _todaySales.fold(0.0, (sum, s) => sum + s.revenue);
-  double get todayProfitTotal => _todaySales.fold(0.0, (sum, s) => sum + _saleProfit(s));
   double get todayExpensesTotal => _todayExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
+  /// Σ (selling price − unit cost) × qty for today's sales — gross sales
+  /// profit only, same formula as [monthSalesProfit] just scoped to today.
+  /// Deliberately ignores expenses (see the separate "Today's expenses"
+  /// card) so a same-day ingredient batch expense (see
+  /// product_form_screen.dart's "Save batch as expense") can't double-count
+  /// against this figure — once as the expense itself, again as COGS here.
+  double get todayProfitTotal => _todaySales.fold(0.0, (sum, s) => sum + _saleProfit(s));
+
   int get todayItemsSold => _todaySales.fold(0, (sum, s) => sum + s.qty);
 
   double get inventoryValue => products.fold(0.0, (sum, p) => sum + p.inventoryValue);
@@ -577,8 +694,13 @@ class AppState extends ChangeNotifier {
   double get monthSalesProfit => _monthSales.fold(0.0, (sum, s) => sum + _saleProfit(s));
   double get monthExpensesTotal => _monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-  /// `monthNet = Σ sales profit − Σ expenses` — red styling when negative.
-  double get monthNet => monthSalesProfit - monthExpensesTotal;
+  /// Same as [monthSalesProfit] — gross sales profit for the month, no
+  /// expenses subtracted. Kept as a separate getter (rather than pointing
+  /// the sidebar directly at [monthSalesProfit]) so it can keep meaning
+  /// "the month figure the sidebar shows" if that ever needs to diverge
+  /// again. Matches [todayProfitTotal]'s methodology — see its doc comment
+  /// for why expenses are deliberately left out. Red styling when negative.
+  double get monthNet => monthSalesProfit;
 
   int get lowStockCount =>
       products.where((p) => p.isLowStock(settings.lowStockThreshold)).length;

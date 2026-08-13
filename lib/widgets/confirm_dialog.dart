@@ -57,9 +57,25 @@ class ConfirmDialogHost extends StatelessWidget {
                         child: Text('!', style: TextStyle(color: colors.red, fontWeight: FontWeight.w800, fontSize: 20)),
                       ),
                       const SizedBox(height: 14),
-                      Text(request.title, style: TextStyle(color: colors.ink, fontWeight: FontWeight.w800, fontSize: 17)),
+                      Text(
+                        request.title,
+                        style: TextStyle(
+                          color: colors.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text(request.body, style: TextStyle(color: colors.muted, fontSize: 13.5, height: 1.4)),
+                      Text(
+                        request.body,
+                        style: TextStyle(
+                          color: colors.muted,
+                          fontSize: 13.5,
+                          height: 1.4,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       Row(
                         children: [

@@ -100,7 +100,9 @@ class _SalesScreenState extends State<SalesScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.field), borderSide: BorderSide(color: colors.line)),
                 ),
                 items: [
-                  for (final p in state.products)
+                  // Archived (soft-deleted) products stay out of the picker
+                  // — see AppState.deleteProduct.
+                  for (final p in state.products.where((p) => !p.archived))
                     DropdownMenuItem(
                       value: p.id,
                       child: Text('${p.name} · ${formatMoney(p.price, symbol, decimals: 2)} · ${p.stock} ${p.unit}'),

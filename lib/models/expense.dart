@@ -16,6 +16,13 @@ class Expense {
   /// not a supply purchase.
   final int? quantity;
 
+  /// Ties every row from one "Save batch as expense" click together, as
+  /// `"<product_id>:<yyyy-MM-dd>"` — lets the Products form warn before
+  /// saving the same product's ingredient batch twice in a day. Null for
+  /// expenses added the normal way. See `AppState.saveIngredientBatchExpenses`
+  /// / `supabase/006_expenses_batch_ref.sql`.
+  final String? batchRef;
+
   const Expense({
     required this.id,
     required this.description,
@@ -24,6 +31,7 @@ class Expense {
     required this.date,
     this.notes = '',
     this.quantity,
+    this.batchRef,
   });
 
   /// Write payload for Supabase — `id` is DB-assigned and never sent.
@@ -36,6 +44,7 @@ class Expense {
         'expense_date': date.toIso8601String().split('T').first,
         'notes': notes,
         'quantity': quantity,
+        'batch_ref': batchRef,
       };
 
   factory Expense.fromJson(Map<String, dynamic> json) => Expense(
@@ -46,11 +55,15 @@ class Expense {
         date: DateTime.parse(json['expense_date'] as String),
         notes: json['notes'] as String? ?? '',
         quantity: json['quantity'] as int?,
+        batchRef: json['batch_ref'] as String?,
       );
 }
 
-/// The 8 expense categories from `design/README.md`.
+/// Expense categories — the 8 from `design/README.md` plus `Ingredients`,
+/// for raw materials bought for a recipe (sugar, gulaman, milk…) as
+/// distinct from `Packaging`/`Supplies` (cups, spoons, bags…).
 const kExpenseCategories = [
+  'Ingredients',
   'Transportation',
   'Packaging',
   'Utilities',

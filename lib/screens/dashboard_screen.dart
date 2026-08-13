@@ -19,6 +19,12 @@ class DashboardScreen extends StatelessWidget {
     final colors = context.colors;
     final symbol = state.settings.currencySymbol;
 
+    // All-time totals — plain cash-in vs cash-out, not the COGS-based
+    // "Today's profit" figure above (see AppState.todayProfitTotal).
+    final totalSales = state.sales.fold(0.0, (sum, s) => sum + s.revenue);
+    final totalExpenses = state.expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final totalProfit = totalSales - totalExpenses;
+
     final daily = state.dailyTotals();
     final groups = [
       for (final d in daily) BarGroup(dayLabel: formatShortDay(d.day), values: [d.sales, d.cost, d.profit])
@@ -35,10 +41,20 @@ class DashboardScreen extends StatelessWidget {
       children: [
         KpiGrid(cards: [
           KpiCard(label: "Today's sales", value: formatMoney(state.todaySalesTotal, symbol)),
-          KpiCard(label: "Today's profit", value: formatMoney(state.todayProfitTotal, symbol), valueColor: colors.greenInk),
+          KpiCard(
+            label: "Today's profit",
+            value: formatMoney(state.todayProfitTotal, symbol),
+            valueColor: state.todayProfitTotal >= 0 ? colors.greenInk : colors.red,
+          ),
           KpiCard(label: "Today's expenses", value: formatMoney(state.todayExpensesTotal, symbol), valueColor: colors.red),
           KpiCard(label: 'Items sold', value: '${state.todayItemsSold}'),
           KpiCard(label: 'Inventory value', value: formatMoney(state.inventoryValue, symbol)),
+          KpiCard(
+            label: 'Total profit',
+            value: formatMoney(totalProfit, symbol),
+            valueColor: totalProfit >= 0 ? colors.greenInk : colors.red,
+            note: 'All-time sales − expenses',
+          ),
         ]),
         const SizedBox(height: 20),
         SectionCard(

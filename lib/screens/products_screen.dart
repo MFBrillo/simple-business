@@ -15,9 +15,13 @@ class ProductsScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final colors = context.colors;
     final query = state.search.trim().toLowerCase();
+    // Archived products (deleted while they still had sales history — see
+    // AppState.deleteProduct) stay in state.products so past sales/reports
+    // can still resolve their name and cost, but drop out of the catalog.
+    final active = state.products.where((p) => !p.archived);
     final filtered = query.isEmpty
-        ? state.products
-        : state.products
+        ? active.toList()
+        : active
             .where((p) =>
                 p.name.toLowerCase().contains(query) ||
                 p.category.toLowerCase().contains(query) ||
