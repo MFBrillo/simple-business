@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/product.dart';
+import '../models/product_material.dart';
 import '../state/app_screen.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
@@ -16,6 +17,30 @@ class ProductFormScreen extends StatefulWidget {
   State<ProductFormScreen> createState() => _ProductFormScreenState();
 }
 
+/// One editable ingredient row — name/cost/quantity controllers, freed via
+/// [dispose]. Kept as plain objects (not widgets) so the row list can be
+/// mutated with ordinary `List` operations from [_ProductFormScreenState].
+class _MaterialRow {
+  final TextEditingController name;
+  final TextEditingController cost;
+  final TextEditingController qty;
+
+  _MaterialRow({String name = '', String cost = '', String qty = ''})
+      : name = TextEditingController(text: name),
+        cost = TextEditingController(text: cost),
+        qty = TextEditingController(text: qty);
+
+  double get _costValue => double.tryParse(cost.text) ?? 0;
+  double get _qtyValue => double.tryParse(qty.text) ?? 0;
+  double get subtotal => _costValue * _qtyValue;
+
+  void dispose() {
+    name.dispose();
+    cost.dispose();
+    qty.dispose();
+  }
+}
+
 class _ProductFormScreenState extends State<ProductFormScreen> {
   late final TextEditingController name;
   late final TextEditingController sku;
@@ -25,6 +50,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late final TextEditingController labor;
   late final TextEditingController other;
   late final TextEditingController stock;
+  late final TextEditingController batchYield;
+  late List<_MaterialRow> materialRows;
   late String category;
   late String unit;
   int? editingId;
@@ -48,6 +75,18 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     category = existing?.category ?? kProductCategories.first;
     unit = existing?.unit ?? kProductUnits.first;
 
+    final existingMaterials = existing?.materials ?? const <ProductMaterial>[];
+    materialRows = [
+      for (final m in existingMaterials) _MaterialRow(name: m.name, cost: _fmt(m.unitCost), qty: _fmt(m.quantity)),
+    ];
+    batchYield = TextEditingController(text: existingMaterials.isEmpty ? '' : existing!.batchYield.toString());
+    for (final row in materialRows) {
+      row.name.addListener(() => setState(() {}));
+      row.cost.addListener(_onMaterialsChanged);
+      row.qty.addListener(_onMaterialsChanged);
+    }
+    batchYield.addListener(_onMaterialsChanged);
+
     for (final c in [name, sku, price, material, packaging, labor, other, stock]) {
       c.addListener(() => setState(() {}));
     }
@@ -57,14 +96,46 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [name, sku, price, material, packaging, labor, other, stock]) {
+    for (final c in [name, sku, price, material, packaging, labor, other, stock, batchYield]) {
       c.dispose();
+    }
+    for (final row in materialRows) {
+      row.dispose();
     }
     super.dispose();
   }
 
   double _d(TextEditingController c) => double.tryParse(c.text) ?? 0;
   int _i(TextEditingController c) => int.tryParse(c.text) ?? 0;
+
+  /// Keeps [material] in sync with the ingredient rows while any exist —
+  /// `total ÷ finished quantity`. Once the last row is removed this stops
+  /// touching [material], leaving it as a normal, directly-editable field
+  /// seeded with whatever it last computed to.
+  void _onMaterialsChanged() {
+    if (materialRows.isEmpty) {
+      setState(() {});
+      return;
+    }
+    final total = materialRows.fold(0.0, (sum, r) => sum + r.subtotal);
+    final yieldQty = int.tryParse(batchYield.text) ?? 0;
+    final perUnit = yieldQty > 0 ? total / yieldQty : 0.0;
+    material.text = perUnit.toStringAsFixed(2);
+  }
+
+  void _addMaterialRow() {
+    final row = _MaterialRow();
+    row.name.addListener(() => setState(() {}));
+    row.cost.addListener(_onMaterialsChanged);
+    row.qty.addListener(_onMaterialsChanged);
+    setState(() => materialRows.add(row));
+  }
+
+  void _removeMaterialRow(_MaterialRow row) {
+    setState(() => materialRows.remove(row));
+    row.dispose();
+    _onMaterialsChanged();
+  }
 
   Future<void> _save() async {
     if (saving) return;
@@ -76,6 +147,11 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       return;
     }
     final isNew = editingId == null;
+    final materialsList = [
+      for (final row in materialRows)
+        if (row.name.text.trim().isNotEmpty || row._costValue != 0 || row._qtyValue != 0)
+          ProductMaterial(name: row.name.text.trim(), unitCost: row._costValue, quantity: row._qtyValue),
+    ];
     // id is DB-assigned on insert; 0 is just a placeholder for the isNew case.
     final product = Product(
       id: isNew ? 0 : editingId!,
@@ -89,6 +165,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       other: _d(other),
       stock: _i(stock),
       unit: unit,
+      materials: materialsList,
+      batchYield: materialsList.isEmpty ? 1 : (int.tryParse(batchYield.text) ?? 1),
     );
 
     setState(() => saving = true);
@@ -122,6 +200,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           labor: labor,
           other: other,
           stock: stock,
+          batchYield: batchYield,
+          materialRows: materialRows,
+          onAddMaterialRow: _addMaterialRow,
+          onRemoveMaterialRow: _removeMaterialRow,
           category: category,
           unit: unit,
           onCategoryChanged: (v) => setState(() => category = v),
@@ -150,7 +232,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 class _FormCard extends StatelessWidget {
   final bool isNew;
   final bool saving;
-  final TextEditingController name, sku, price, material, packaging, labor, other, stock;
+  final TextEditingController name, sku, price, material, packaging, labor, other, stock, batchYield;
+  final List<_MaterialRow> materialRows;
+  final VoidCallback onAddMaterialRow;
+  final ValueChanged<_MaterialRow> onRemoveMaterialRow;
   final String category, unit;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<String> onUnitChanged;
@@ -167,6 +252,10 @@ class _FormCard extends StatelessWidget {
     required this.labor,
     required this.other,
     required this.stock,
+    required this.batchYield,
+    required this.materialRows,
+    required this.onAddMaterialRow,
+    required this.onRemoveMaterialRow,
     required this.category,
     required this.unit,
     required this.onCategoryChanged,
@@ -200,13 +289,53 @@ class _FormCard extends StatelessWidget {
           const SizedBox(height: 18),
           Divider(color: colors.line),
           const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Ingredients (optional)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: colors.ink2)),
+              ),
+              TextButton.icon(
+                onPressed: onAddMaterialRow,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add ingredient', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.greenInk,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'List what one batch uses — material cost per unit below is worked out for you.',
+            style: TextStyle(fontSize: 11.5, color: colors.muted),
+          ),
+          if (materialRows.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final row in materialRows) ...[
+              _MaterialRowFields(row: row, onRemove: () => onRemoveMaterialRow(row)),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 4),
+            _FieldTile(width: 170, label: 'Finished quantity', child: _TextInput(controller: batchYield, isNumber: true, hint: 'e.g. 30')),
+            const SizedBox(height: 12),
+            _IngredientsSummary(materialRows: materialRows, batchYield: batchYield),
+          ],
+          const SizedBox(height: 18),
+          Divider(color: colors.line),
+          const SizedBox(height: 8),
           Text('Cost breakdown — per unit', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: colors.ink2)),
           const SizedBox(height: 13),
           Wrap(
             spacing: 13,
             runSpacing: 13,
             children: [
-              _FieldTile(width: 150, label: 'Material', child: _TextInput(controller: material, isNumber: true)),
+              _FieldTile(
+                width: 150,
+                label: materialRows.isEmpty ? 'Material' : 'Material (auto)',
+                child: _TextInput(controller: material, isNumber: true, enabled: materialRows.isEmpty),
+              ),
               _FieldTile(width: 150, label: 'Packaging', child: _TextInput(controller: packaging, isNumber: true)),
               _FieldTile(width: 150, label: 'Labor', child: _TextInput(controller: labor, isNumber: true)),
               _FieldTile(width: 150, label: 'Other', child: _TextInput(controller: other, isNumber: true)),
@@ -355,24 +484,133 @@ class _FieldTile extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(width: width, child: _Field(label: label, child: child));
 }
 
+/// One "Sugar · ₱25 · ×1" ingredient row: name, unit cost, quantity, a live
+/// subtotal, and a remove button. Rebuilds via the row's own controller
+/// listeners (added in [_ProductFormScreenState]), same pattern as the rest
+/// of the form.
+class _MaterialRowFields extends StatelessWidget {
+  final _MaterialRow row;
+  final VoidCallback onRemove;
+  const _MaterialRowFields({required this.row, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          flex: 3,
+          child: _TextInput(controller: row.name, hint: 'e.g. Sugar'),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(width: 64, child: _TextInput(controller: row.cost, hint: '₱', isNumber: true)),
+        const SizedBox(width: 6),
+        SizedBox(width: 52, child: _TextInput(controller: row.qty, hint: '×qty', isNumber: true)),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 56,
+          child: Text(
+            row.subtotal == 0 ? '—' : formatMoney(row.subtotal, '₱', decimals: 2),
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: colors.ink2),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        IconButton(
+          onPressed: onRemove,
+          icon: Icon(Icons.close_rounded, size: 17, color: colors.muted),
+          tooltip: 'Remove ingredient',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        ),
+      ],
+    );
+  }
+}
+
+/// Total ingredient cost, finished quantity, and the resulting per-unit
+/// material cost — the number that actually feeds [Product.material].
+class _IngredientsSummary extends StatelessWidget {
+  final List<_MaterialRow> materialRows;
+  final TextEditingController batchYield;
+  const _IngredientsSummary({required this.materialRows, required this.batchYield});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final total = materialRows.fold(0.0, (sum, r) => sum + r.subtotal);
+    final yieldQty = int.tryParse(batchYield.text) ?? 0;
+    final perUnit = yieldQty > 0 ? total / yieldQty : 0.0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(color: colors.hover, borderRadius: BorderRadius.circular(AppRadius.field)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SummaryLine('Total material cost', formatMoney(total, '₱', decimals: 2), colors),
+          _SummaryLine(
+            'Material cost / unit',
+            yieldQty > 0 ? formatMoney(perUnit, '₱', decimals: 2) : 'Enter finished quantity',
+            colors,
+            emphasize: yieldQty > 0,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final AppColors colors;
+  final bool emphasize;
+  const _SummaryLine(this.label, this.value, this.colors, {this.emphasize = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: colors.muted)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: emphasize ? colors.greenInk : colors.ink2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TextInput extends StatelessWidget {
   final TextEditingController controller;
   final String? hint;
   final bool isNumber;
-  const _TextInput({required this.controller, this.hint, this.isNumber = false});
+  final bool enabled;
+  const _TextInput({required this.controller, this.hint, this.isNumber = false, this.enabled = true});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return TextField(
       controller: controller,
+      enabled: enabled,
       keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       style: TextStyle(fontSize: 13.5, color: colors.ink),
       decoration: InputDecoration(
         hintText: hint,
         isDense: true,
         filled: true,
-        fillColor: colors.bg,
+        fillColor: enabled ? colors.bg : colors.hover,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.field),

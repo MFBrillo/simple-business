@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/expense.dart';
+import '../models/supply.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import '../utils/formatting.dart';
@@ -20,6 +21,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final desc = TextEditingController();
   final amount = TextEditingController();
   final notes = TextEditingController();
+  final quantity = TextEditingController();
   String category = kExpenseCategories.first;
   DateTime date = DateTime.now();
   bool saving = false;
@@ -29,6 +31,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     desc.dispose();
     amount.dispose();
     notes.dispose();
+    quantity.dispose();
     super.dispose();
   }
 
@@ -40,6 +43,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       state.showToast('Enter a description and an amount above ₱0');
       return;
     }
+    final q = int.tryParse(quantity.text);
     setState(() => saving = true);
     // id is DB-assigned; 0 is just a placeholder for the insert payload.
     final ok = await state.addExpense(Expense(
@@ -49,6 +53,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       amount: a,
       date: date,
       notes: notes.text.trim(),
+      quantity: q != null && q > 0 ? q : null,
     ));
     if (!mounted) return;
     setState(() => saving = false);
@@ -56,6 +61,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       desc.clear();
       amount.clear();
       notes.clear();
+      quantity.clear();
       setState(() => date = DateTime.now());
       state.showToast('Expense added');
     }
@@ -113,6 +119,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                     _Field(label: 'Amount ₱', child: _TextInput(controller: amount, isNumber: true)),
                     _Field(
+                      label: 'Restocks (pc, optional)',
+                      child: _TextInput(controller: quantity, isNumber: true, hint: 'e.g. 100'),
+                    ),
+                    _Field(
                       label: 'Date',
                       child: InkWell(
                         onTap: () async {
@@ -145,7 +155,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   return Column(children: [for (final f in fields) Padding(padding: const EdgeInsets.only(bottom: 13), child: f)]);
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              Text(
+                "If this expense is restocking a supply (cups, spoons…), set Restocks and the Description becomes that supply's name — its running count goes up by that many, then down by 1 on every sale.",
+                style: TextStyle(fontSize: 11.5, color: colors.muted, height: 1.4),
+              ),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -161,6 +176,27 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: Text(saving ? 'Adding…' : 'Add expense', style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        SectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle(title: 'Supplies on hand'),
+              const SizedBox(height: 14),
+              if (state.supplies.isEmpty)
+                Text(
+                  'No tracked supplies yet — add an expense above with a Restocks quantity to start one.',
+                  style: TextStyle(color: colors.muted, fontSize: 13),
+                )
+              else
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [for (final s in state.supplies) _SupplyPill(supply: s, threshold: state.settings.lowStockThreshold)],
+                ),
             ],
           ),
         ),
@@ -244,6 +280,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       );
 }
 
+/// "Plastic Cup — 97 pc" chip; ambers out under the same low-stock
+/// threshold Products use, reds out at zero.
+class _SupplyPill extends StatelessWidget {
+  final Supply supply;
+  final int threshold;
+  const _SupplyPill({required this.supply, required this.threshold});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final (bg, fg) = supply.quantity <= 0
+        ? (colors.redSoft, colors.red)
+        : supply.quantity <= threshold
+            ? (colors.amberSoft, colors.amber)
+            : (colors.hover, colors.ink2);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.field)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(supply.name, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fg)),
+          const SizedBox(width: 6),
+          Text('${supply.quantity} pc', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: fg)),
+        ],
+      ),
+    );
+  }
+}
+
 class _Field extends StatelessWidget {
   final String label;
   final Widget child;
@@ -314,7 +380,21 @@ class _ExpenseRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(expense.description, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.ink)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        expense.description,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.ink),
+                      ),
+                    ),
+                    if (expense.quantity != null && expense.quantity! > 0) ...[
+                      const SizedBox(width: 6),
+                      Text('+${expense.quantity} pc', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.greenInk)),
+                    ],
+                  ],
+                ),
                 if (expense.notes.isNotEmpty)
                   Text(expense.notes, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.muted)),
               ],

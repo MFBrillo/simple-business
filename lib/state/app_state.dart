@@ -10,6 +10,7 @@ import '../models/expense.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/settings.dart';
+import '../models/supply.dart';
 import '../supabase/supabase_client.dart';
 import 'app_screen.dart';
 
@@ -85,6 +86,7 @@ class AppState extends ChangeNotifier {
   List<Product> products = [];
   List<Sale> sales = [];
   List<Expense> expenses = [];
+  List<Supply> supplies = [];
   AppSettings settings = const AppSettings();
 
   /// Whether the signed-in account has `users.is_admin = true`. Drives the
@@ -120,6 +122,7 @@ class AppState extends ChangeNotifier {
       products = [];
       sales = [];
       expenses = [];
+      supplies = [];
       settings = const AppSettings();
       isAdmin = false;
       users = [];
@@ -227,6 +230,9 @@ class AppState extends ChangeNotifier {
 
       final expenseRows = await supabase.from('expenses').select().order('expense_date', ascending: false);
       expenses = expenseRows.map((r) => Expense.fromJson(r)).toList();
+
+      final supplyRows = await supabase.from('supplies').select().order('name');
+      supplies = supplyRows.map((r) => Supply.fromJson(r)).toList();
 
       final settingsRows = await supabase.from('settings').select().limit(1);
       if (settingsRows.isEmpty) {
@@ -395,11 +401,30 @@ class AppState extends ChangeNotifier {
       final i = products.indexWhere((p) => p.id == productId);
       if (i != -1) products[i] = updatedProduct;
 
+      await _consumeSupplies();
+
       notifyListeners();
       return (price - product.unitCost) * qty;
     } catch (e) {
       showToast('Could not record sale: ${_friendlyError(e)}');
       return null;
+    }
+  }
+
+  /// Deducts 1 unit from every supply on hand (floored at 0) — one sale
+  /// consumes one of each tracked supply, regardless of which product was
+  /// sold or how many units. Best-effort: a hiccup here shouldn't make
+  /// [recordSale] report failure for a sale that's already been written.
+  Future<void> _consumeSupplies() async {
+    for (final s in List<Supply>.from(supplies)) {
+      if (s.quantity <= 0) continue;
+      try {
+        final row = await supabase.from('supplies').update({'quantity': s.quantity - 1}).eq('id', s.id).select().single();
+        final i = supplies.indexWhere((x) => x.id == s.id);
+        if (i != -1) supplies[i] = Supply.fromJson(row);
+      } catch (_) {
+        // Non-fatal — see doc comment above.
+      }
     }
   }
 
@@ -419,12 +444,35 @@ class AppState extends ChangeNotifier {
     try {
       final row = await supabase.from('expenses').insert(expense.toJson()).select().single();
       expenses.insert(0, Expense.fromJson(row));
+      if (expense.quantity != null && expense.quantity! > 0) {
+        await _restockSupply(expense.description.trim(), expense.quantity!);
+      }
       notifyListeners();
       return true;
     } catch (e) {
       showToast('Could not add expense: ${_friendlyError(e)}');
       return false;
     }
+  }
+
+  /// Adds [addQuantity] to the running stock of the supply named [name]
+  /// (case-insensitive match against existing supplies), creating it if
+  /// this is the first time it's been restocked.
+  Future<void> _restockSupply(String name, int addQuantity) async {
+    final i = supplies.indexWhere((s) => s.name.toLowerCase() == name.toLowerCase());
+    if (i == -1) {
+      final row = await supabase.from('supplies').insert({'name': name, 'quantity': addQuantity}).select().single();
+      supplies.add(Supply.fromJson(row));
+    } else {
+      final row = await supabase
+          .from('supplies')
+          .update({'quantity': supplies[i].quantity + addQuantity})
+          .eq('id', supplies[i].id)
+          .select()
+          .single();
+      supplies[i] = Supply.fromJson(row);
+    }
+    supplies.sort((a, b) => a.name.compareTo(b.name));
   }
 
   Future<void> deleteExpense(int id) async {

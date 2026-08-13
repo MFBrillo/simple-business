@@ -1,3 +1,5 @@
+import 'product_material.dart';
+
 /// A product an owner sells, with its per-unit cost breakdown.
 ///
 /// Mirrors the `products` shape in `design/README.md`:
@@ -15,6 +17,17 @@ class Product {
   final int stock;
   final String unit;
 
+  /// Optional ingredient/recipe breakdown — when non-empty, [material] is
+  /// kept in sync as [materialsCostTotal] ÷ [batchYield] instead of being
+  /// typed in directly (see product_form_screen.dart). Empty for products
+  /// that just have a flat material cost, including every product created
+  /// before this existed.
+  final List<ProductMaterial> materials;
+
+  /// How many finished units one batch of [materials] produces. Only
+  /// meaningful when [materials] is non-empty; defaults to 1 otherwise.
+  final int batchYield;
+
   const Product({
     required this.id,
     required this.name,
@@ -27,7 +40,12 @@ class Product {
     required this.other,
     required this.stock,
     required this.unit,
+    this.materials = const [],
+    this.batchYield = 1,
   });
+
+  /// Sum of `unitCost × quantity` across [materials].
+  double get materialsCostTotal => materials.fold(0.0, (sum, m) => sum + m.subtotal);
 
   /// `unitCost = material + packaging + labor + other`.
   double get unitCost => material + packaging + labor + other;
@@ -57,6 +75,8 @@ class Product {
     double? other,
     int? stock,
     String? unit,
+    List<ProductMaterial>? materials,
+    int? batchYield,
   }) {
     return Product(
       id: id ?? this.id,
@@ -70,6 +90,8 @@ class Product {
       other: other ?? this.other,
       stock: stock ?? this.stock,
       unit: unit ?? this.unit,
+      materials: materials ?? this.materials,
+      batchYield: batchYield ?? this.batchYield,
     );
   }
 
@@ -86,6 +108,8 @@ class Product {
         'other': other,
         'stock': stock,
         'unit': unit,
+        'materials': materials.map((m) => m.toJson()).toList(),
+        'batch_yield': batchYield,
       };
 
   factory Product.fromJson(Map<String, dynamic> json) => Product(
@@ -100,6 +124,10 @@ class Product {
         other: (json['other'] as num).toDouble(),
         stock: json['stock'] as int,
         unit: json['unit'] as String,
+        materials: (json['materials'] as List<dynamic>? ?? const [])
+            .map((m) => ProductMaterial.fromJson(m as Map<String, dynamic>))
+            .toList(),
+        batchYield: json['batch_yield'] as int? ?? 1,
       );
 }
 

@@ -10,6 +10,12 @@ class Expense {
   final DateTime date;
   final String notes;
 
+  /// If set (and > 0), this expense also restocks that many units of the
+  /// supply named after [description] — see `AppState.addExpense` /
+  /// `supabase/005_supplies.sql`. Null for an expense that's just a cost,
+  /// not a supply purchase.
+  final int? quantity;
+
   const Expense({
     required this.id,
     required this.description,
@@ -17,6 +23,7 @@ class Expense {
     required this.amount,
     required this.date,
     this.notes = '',
+    this.quantity,
   });
 
   /// Write payload for Supabase — `id` is DB-assigned and never sent.
@@ -28,6 +35,7 @@ class Expense {
         'amount': amount,
         'expense_date': date.toIso8601String().split('T').first,
         'notes': notes,
+        'quantity': quantity,
       };
 
   factory Expense.fromJson(Map<String, dynamic> json) => Expense(
@@ -37,6 +45,7 @@ class Expense {
         amount: (json['amount'] as num).toDouble(),
         date: DateTime.parse(json['expense_date'] as String),
         notes: json['notes'] as String? ?? '',
+        quantity: json['quantity'] as int?,
       );
 }
 
