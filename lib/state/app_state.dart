@@ -407,21 +407,33 @@ class AppState extends ChangeNotifier {
 
   // --- Sales -----------------------------------------------------------
   /// Records a sale and decrements stock (floored at 0). Returns the profit
-  /// earned, or null if blocked (qty <= 0) or the write failed.
+  /// earned, or null if blocked (qty <= 0) or the write failed. [date]
+  /// defaults to now — pass an earlier date to log a sale that happened
+  /// before today (e.g. entering the day's sales after closing up).
   Future<double?> recordSale({
     required int productId,
     required int qty,
     required double price,
     required String method,
+    DateTime? date,
   }) async {
     if (qty <= 0) return null;
     final product = productById(productId);
     if (product == null) return null;
 
     try {
-      final draft = Sale(id: 0, productId: productId, qty: qty, price: price, method: method, date: DateTime.now());
+      // Keep the current time-of-day even on a backdated sale (rather than
+      // landing exactly on local midnight) — `sold_at` is a timestamptz, and
+      // midnight is the one instant most likely to shift to the wrong
+      // calendar day once converted through UTC.
+      final now = DateTime.now();
+      final effectiveDate =
+          date == null ? now : DateTime(date.year, date.month, date.day, now.hour, now.minute, now.second);
+      final draft = Sale(id: 0, productId: productId, qty: qty, price: price, method: method, date: effectiveDate);
       final saleRow = await supabase.from('sales').insert(draft.toJson()).select().single();
       sales.insert(0, Sale.fromJson(saleRow));
+      // Keep newest-first even when a backdated sale was just inserted.
+      sales.sort((a, b) => b.date.compareTo(a.date));
 
       final newStock = (product.stock - qty).clamp(0, 1 << 30);
       final productRow = await supabase.from('products').update({'stock': newStock}).eq('id', productId).select().single();
@@ -453,6 +465,25 @@ class AppState extends ChangeNotifier {
       } catch (_) {
         // Non-fatal — see doc comment above.
       }
+    }
+  }
+
+  /// Updates an existing sale's fields in place. Like [voidSale] ("Stock
+  /// will not be restored automatically"), this deliberately does not
+  /// touch product stock or supplies either — editing a sale's product/qty
+  /// doesn't reconcile stock; adjust it separately if needed.
+  Future<bool> updateSale(Sale sale) async {
+    try {
+      final row = await supabase.from('sales').update(sale.toJson()).eq('id', sale.id).select().single();
+      final updated = Sale.fromJson(row);
+      final i = sales.indexWhere((s) => s.id == sale.id);
+      if (i != -1) sales[i] = updated;
+      sales.sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+      return true;
+    } catch (e) {
+      showToast('Could not update sale: ${_friendlyError(e)}');
+      return false;
     }
   }
 

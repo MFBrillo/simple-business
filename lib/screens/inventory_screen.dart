@@ -125,7 +125,7 @@ class _Header extends StatelessWidget {
           SizedBox(width: 90, child: Text('COST/UNIT', style: style, textAlign: TextAlign.right)),
           SizedBox(width: 110, child: Text('VALUE', style: style, textAlign: TextAlign.right)),
           SizedBox(width: 100, child: Text('STATUS', style: style)),
-          const SizedBox(width: 170),
+          const SizedBox(width: 250),
         ],
       ),
     );
@@ -178,7 +178,7 @@ class _Row extends StatelessWidget {
           ),
           SizedBox(width: 100, child: StatusPill(label: label, tone: tone)),
           SizedBox(
-            width: 170,
+            width: 250,
             child: Row(
               children: [
                 Expanded(
@@ -191,6 +191,19 @@ class _Row extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
                     ),
                     child: const Text('Add stock', style: TextStyle(fontSize: 11.5)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => state.startEditProduct(product.id),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.ink2,
+                      side: BorderSide(color: colors.line),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                    ),
+                    child: const Text('Edit', style: TextStyle(fontSize: 11.5)),
                   ),
                 ),
                 const SizedBox(width: 8),

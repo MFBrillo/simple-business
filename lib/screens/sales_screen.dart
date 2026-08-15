@@ -20,7 +20,12 @@ class _SalesScreenState extends State<SalesScreen> {
   final qty = TextEditingController(text: '1');
   final price = TextEditingController();
   String method = kPaymentMethods.first;
+  DateTime date = DateTime.now();
   bool saving = false;
+
+  /// Non-null while the "Record a sale" form is instead editing this
+  /// existing sale's id (see [_startEditSale]).
+  int? editingSaleId;
 
   @override
   void initState() {
@@ -43,6 +48,28 @@ class _SalesScreenState extends State<SalesScreen> {
     });
   }
 
+  void _startEditSale(Sale s) {
+    setState(() {
+      editingSaleId = s.id;
+      productId = s.productId;
+      qty.text = '${s.qty}';
+      price.text = s.price == s.price.roundToDouble() ? s.price.toStringAsFixed(0) : s.price.toString();
+      method = s.method;
+      date = s.date;
+    });
+  }
+
+  void _resetForm() {
+    setState(() {
+      editingSaleId = null;
+      productId = null;
+      qty.text = '1';
+      price.clear();
+      method = kPaymentMethods.first;
+      date = DateTime.now();
+    });
+  }
+
   Future<void> _record(AppState state, Product product) async {
     if (saving) return;
     final q = int.tryParse(qty.text) ?? 0;
@@ -51,13 +78,34 @@ class _SalesScreenState extends State<SalesScreen> {
       state.showToast('Enter a quantity above 0');
       return;
     }
+    final isNew = editingSaleId == null;
     setState(() => saving = true);
-    final profit = await state.recordSale(productId: product.id, qty: q, price: p, method: method);
+    double? profit;
+    bool ok;
+    if (isNew) {
+      profit = await state.recordSale(productId: product.id, qty: q, price: p, method: method, date: date);
+      ok = profit != null;
+    } else {
+      ok = await state.updateSale(
+        Sale(id: editingSaleId!, productId: product.id, qty: q, price: p, method: method, date: date),
+      );
+      profit = (p - product.unitCost) * q;
+    }
     if (!mounted) return;
     setState(() => saving = false);
-    if (profit == null) return;
-    setState(() => qty.text = '1');
-    state.showToast('Sale recorded — ${formatMoney(profit, state.settings.currencySymbol)} profit earned');
+    if (!ok) return;
+    if (isNew) {
+      // Keep productId/price/method as-is (selling the same product again
+      // is common) — only the qty/date reset between sales.
+      setState(() {
+        qty.text = '1';
+        date = DateTime.now();
+      });
+      state.showToast('Sale recorded — ${formatMoney(profit!, state.settings.currencySymbol)} profit earned');
+    } else {
+      _resetForm();
+      state.showToast('Sale updated');
+    }
   }
 
   @override
@@ -84,11 +132,17 @@ class _SalesScreenState extends State<SalesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionTitle(title: 'Record a sale'),
+              SectionTitle(title: editingSaleId == null ? 'Record a sale' : 'Edit sale'),
               const SizedBox(height: 16),
               Text('Product', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.ink2)),
               const SizedBox(height: 6),
               DropdownButtonFormField<int>(
+                // FormField only reads `initialValue` on first build (or on
+                // an explicit reset) — without this key, _startEditSale /
+                // _resetForm setting productId programmatically wouldn't be
+                // reflected here, only picking a product via onChanged
+                // would.
+                key: ValueKey('sale-product-$editingSaleId'),
                 initialValue: productId,
                 isExpanded: true,
                 hint: const Text('Select a product'),
@@ -140,6 +194,28 @@ class _SalesScreenState extends State<SalesScreen> {
                 ],
               ),
               const SizedBox(height: 13),
+              _Field(
+                label: 'Date',
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: date,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) setState(() => date = picked);
+                  },
+                  child: InputDecorator(
+                    decoration: _inputDecoration(colors),
+                    child: Text(
+                      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+                      style: TextStyle(fontSize: 13.5, color: colors.ink),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 13),
               Text('Payment method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.ink2)),
               const SizedBox(height: 8),
               Wrap(
@@ -172,24 +248,49 @@ class _SalesScreenState extends State<SalesScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (product == null || saving) ? null : () => _record(state, product),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.green,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: colors.hover,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
-                  ),
-                  child: Text(
-                    saving ? 'Recording…' : 'Record sale · ${formatMoney(revenue, symbol)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+              if (editingSaleId != null) ...[
+                const SizedBox(height: 13),
+                Text(
+                  "Editing doesn't adjust stock automatically — adjust it separately if needed.",
+                  style: TextStyle(fontSize: 11.5, color: colors.muted, height: 1.4),
                 ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (product == null || saving) ? null : () => _record(state, product),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.green,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: colors.hover,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                      ),
+                      child: Text(
+                        saving
+                            ? (editingSaleId == null ? 'Recording…' : 'Saving…')
+                            : (editingSaleId == null ? 'Record sale · ${formatMoney(revenue, symbol)}' : 'Save changes'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  if (editingSaleId != null) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: saving ? null : _resetForm,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.ink2,
+                        side: BorderSide(color: colors.line),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.field)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -241,7 +342,7 @@ class _SalesScreenState extends State<SalesScreen> {
           children: [
             layout,
             const SizedBox(height: 20),
-            _SalesHistoryCard(symbol: symbol),
+            _SalesHistoryCard(symbol: symbol, onEdit: _startEditSale),
           ],
         );
       },
@@ -361,7 +462,8 @@ class _FormulaRow extends StatelessWidget {
 
 class _SalesHistoryCard extends StatelessWidget {
   final String symbol;
-  const _SalesHistoryCard({required this.symbol});
+  final ValueChanged<Sale> onEdit;
+  const _SalesHistoryCard({required this.symbol, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -388,7 +490,7 @@ class _SalesHistoryCard extends StatelessWidget {
                 child: Column(
                   children: [
                     _HistoryHeader(colors: colors),
-                    for (final s in sales) _HistoryRow(sale: s, symbol: symbol),
+                    for (final s in sales) _HistoryRow(sale: s, symbol: symbol, onEdit: onEdit),
                   ],
                 ),
               ),
@@ -417,6 +519,7 @@ class _HistoryHeader extends StatelessWidget {
           SizedBox(width: 90, child: Text('COST', style: style, textAlign: TextAlign.right)),
           SizedBox(width: 90, child: Text('PROFIT', style: style, textAlign: TextAlign.right)),
           SizedBox(width: 110, child: Text('PAYMENT', style: style)),
+          const SizedBox(width: 44),
           const SizedBox(width: 80),
         ],
       ),
@@ -427,7 +530,8 @@ class _HistoryHeader extends StatelessWidget {
 class _HistoryRow extends StatelessWidget {
   final Sale sale;
   final String symbol;
-  const _HistoryRow({required this.sale, required this.symbol});
+  final ValueChanged<Sale> onEdit;
+  const _HistoryRow({required this.sale, required this.symbol, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -460,6 +564,14 @@ class _HistoryRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(color: colors.hover, borderRadius: BorderRadius.circular(99)),
               child: Text(sale.method, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colors.ink2)),
+            ),
+          ),
+          SizedBox(
+            width: 44,
+            child: IconButton(
+              onPressed: () => onEdit(sale),
+              icon: Icon(Icons.edit_outlined, size: 18, color: colors.muted),
+              tooltip: 'Edit sale',
             ),
           ),
           SizedBox(
